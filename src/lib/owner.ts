@@ -75,8 +75,8 @@ export async function monthlyFinance(months = 6) {
     WITH m AS (
       SELECT generate_series(${MONTH_NOW} - make_interval(months => $2 - 1), ${MONTH_NOW}, interval '1 month') AS month
     )
-    SELECT to_char(m.month, 'YYYY-MM') month,
-           (SELECT coalesce(sum(price_sar),0) FROM subscriptions s WHERE s.starts_at IS NOT NULL AND ${monthOf("s.starts_at")} = m.month) revenue,
+    SELECT to_char(m.month, 'YYYY-MM') AS month,
+           (SELECT coalesce(sum(price_sar),0) FROM subscriptions s WHERE s.starts_at IS NOT NULL AND ${monthOf("s.starts_at")} = m.month) AS revenue,
            (SELECT count(*) FROM subscriptions s WHERE s.starts_at IS NOT NULL AND ${monthOf("s.starts_at")} = m.month) subs,
            (SELECT count(*) FROM bookings b WHERE b.status = ANY($1::booking_status[]) AND ${monthOf("b.starts_at")} = m.month) sessions
       FROM m ORDER BY m.month`, [PAYABLE, months]);

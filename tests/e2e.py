@@ -181,6 +181,64 @@ async def main():
             await a.goto(BASE + path); await a.screenshot(path=f"/tmp/s_{name}.png", full_page=True)
         step("admin screens rendered")
 
+
+        # ================= OWNER PORTAL =================
+        # A past completed session for the teacher → should count as payable (35 SAR)
+        tid = sql(f"SELECT id FROM users WHERE email='{T_EMAIL}'").stdout.strip()
+        r = sql(f"""INSERT INTO bookings (subscription_id,parent_id,student_id,teacher_id,subject,track,starts_at,ends_at,teams_link,created_by,status)
+                    SELECT subscription_id,parent_id,student_id,teacher_id,subject,track, now() - interval '3 hours', now() - interval '2 hours', teams_link, created_by, 'completed'
+                    FROM bookings WHERE id='{bid}'""")
+        assert r.returncode == 0, r.stderr
+
+        await a.goto(f"{BASE}/admin")
+        await expect(a.get_by_text("لوحة المالك").first).to_be_visible()
+        await expect(a.get_by_text("إيراد الشهر")).to_be_visible()
+        await a.screenshot(path="/tmp/s_owner_home.png", full_page=True)
+        step("owner dashboard renders money, subscribers, activation")
+
+        await a.goto(f"{BASE}/admin/teachers/stats")
+        row = a.locator("tr", has_text="نورة العتيبي").first
+        await expect(row).to_contain_text("35")
+        await a.screenshot(path="/tmp/s_owner_teachers.png", full_page=True)
+        step("teacher stats: completed session counted, 35 SAR owed")
+
+        await a.goto(f"{BASE}/admin/teachers/{tid}")
+        await a.click("button:has-text('تسجيل الدفع')")
+        await expect(a.get_by_text("مدفوع").first).to_be_visible()
+        bal = sql(f"SELECT coalesce(sum(amount_sar),0) FROM payouts WHERE teacher_id='{tid}'").stdout.strip()
+        assert float(bal) == 35.0, bal
+        step("payout recorded from teacher page; balance cleared")
+
+        C_EMAIL = f"client{R}@test.sa"
+        await a.goto(f"{BASE}/admin/clients/new")
+        await a.fill("#f-full_name", "أم فيصل"); await a.fill("#f-email", C_EMAIL); await a.fill("#f-phone", "0533334444")
+        await a.fill("#f-student_name", "فيصل"); await a.select_option("#grade", "7")
+        await a.select_option("#plan", "SINGLE_SUBJECT")
+        await a.select_option("#subject", "math")
+        await a.fill("#f-payment_note", "تحويل بنكي - اختبار")
+        await a.click("button:has-text('إنشاء الحساب')")
+        msg = a.get_by_role("status")
+        await expect(msg).to_contain_text("كلمة المرور المؤقتة")
+        text = await msg.inner_text()
+        temp = text.split("كلمة المرور المؤقتة:")[1].split("·")[0].strip()
+        step("owner created client account + active subscription")
+
+        cctx = await b.new_context(); cp = await cctx.new_page()
+        await cp.goto(f"{BASE}/login"); await cp.fill("#f-email", C_EMAIL); await cp.fill("#f-password", temp); await cp.click("button[type=submit]")
+        await cp.wait_for_url(f"{BASE}/parent")
+        await expect(cp.get_by_text("فيصل").first).to_be_visible()
+        await expect(cp.get_by_text("8 حصص متبقية").or_(cp.get_by_text("من 8 حصص متبقية"))).to_be_visible()
+        step("client logs in with temp password and sees active subscription")
+
+        await a.goto(f"{BASE}/admin/subscribers")
+        await expect(a.get_by_text("أم فيصل")).to_be_visible()
+        await a.screenshot(path="/tmp/s_owner_subs.png", full_page=True)
+        step("subscribers page lists the new client")
+
+        audit = sql("SELECT count(*) FROM audit_log WHERE action IN ('admin.create_client','payout.record')").stdout.strip()
+        assert int(audit) >= 2
+        step("owner actions written to the audit log")
+
         # ---- Login lockout
         lctx = await b.new_context(); l = await lctx.new_page()
         for i in range(5):
