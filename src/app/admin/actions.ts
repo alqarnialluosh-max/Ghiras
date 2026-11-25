@@ -5,12 +5,12 @@ import { z } from "zod";
 import { audit } from "@/lib/audit";
 import { hashPassword, requireRole, revokeAllSessions } from "@/lib/auth";
 import { adminReschedule, BookingError } from "@/lib/booking";
-import { randomToken } from "@/lib/crypto";
-import { one, q, tx } from "@/lib/db";
+import { encrypt, makeReference, normalizeSaudiPhone, phoneHash, randomToken } from "@/lib/crypto";
+import { isUniqueViolation, one, q, tx } from "@/lib/db";
 import { env } from "@/lib/env";
 import { activateSubscription } from "@/lib/subscriptions";
 import { PAYABLE } from "@/lib/teachers";
-import { fail, type ActionState } from "@/lib/validation";
+import { fail, fieldErrorsOf, keepValues, type ActionState } from "@/lib/validation";
 
 const uuid = z.string().uuid();
 
@@ -167,4 +167,131 @@ export async function resetPasswordAction(_: ActionState, fd: FormData): Promise
   await revokeAllSessions(id.data);
   await audit("user.password_reset", "user", id.data, admin.id);
   return { ok: `كلمة المرور المؤقتة: ${temp} — أرسلها للمستخدم بشكل خاص، ولن تظهر مرة ثانية.` };
+}
+
+// ---------------------------------------------------------------------------
+// Owner: create a client account for critical cases (phone/WhatsApp sign-ups,
+// bank transfers, elderly parents...). Optionally attaches an active subscription.
+// ---------------------------------------------------------------------------
+const createClientSchema = z.object({
+  full_name: z.string().trim().min(2, "اكتب اسم ولي الأمر").max(120),
+  email: z.string().trim().toLowerCase().email("البريد غير صحيح").max(200),
+  phone: z.string().trim().refine((v) => normalizeSaudiPhone(v) !== null, "رقم جوال سعودي غير صحيح"),
+  student_name: z.string().trim().min(2, "اكتب اسم الطالب").max(120),
+  grade: z.coerce.number().int().min(1, "اختر الصف").max(9, "اختر الصف"),
+  notes: z.string().trim().max(1000).optional().default(""),
+  plan: z.string().optional().default(""),
+  subject: z.enum(["math", "arabic", "science"]).optional(),
+  track: z.enum(["remedial", "followup", "exam_prep"]).optional().default("followup"),
+  salla_order_id: z.string().trim().max(60).optional().default(""),
+  payment_note: z.string().trim().max(300).optional().default(""),
+});
+
+export async function createClientAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireRole("admin");
+  const values = keepValues(fd);
+  const raw = Object.fromEntries(fd);
+  if (!raw.subject) delete raw.subject;
+  const parsed = createClientSchema.safeParse(raw);
+  if (!parsed.success) return fail("راجع الحقول المظللة.", fieldErrorsOf(parsed.error), values);
+  const d = parsed.data;
+
+  const plan = d.plan ? await one<{ code: string; price_sar: string; sessions_count: number; bonus_sessions: number;
+    weekly_limit: number | null; duration_days: number; all_subjects: boolean }>(`SELECT * FROM plans WHERE code = $1`, [d.plan]) : null;
+  if (d.plan && !plan) return fail("الباقة غير موجودة.", undefined, values);
+  if (plan && !plan.all_subjects && !d.subject) return fail("اختر المادة للباقة.", { subject: "اختر المادة" }, values);
+  if (plan && !d.salla_order_id && !d.payment_note) {
+    return fail("اكتب رقم طلب سلة أو ملاحظة الدفع (مثلاً: تحويل بنكي) لتفعيل الاشتراك.", { payment_note: "مطلوب مع الباقة" }, values);
+  }
+
+  const temp = `Gh${randomToken(7)}${Math.floor(Math.random() * 90 + 10)}`;
+  try {
+    const result = await tx(async (c) => {
+      if (d.salla_order_id) {
+        const { rows } = await c.query(`SELECT 1 FROM subscriptions WHERE salla_order_id = $1`, [d.salla_order_id]);
+        if (rows[0]) throw new Error("ORDER_USED");
+      }
+      const { rows: u } = await c.query<{ id: string }>(
+        `INSERT INTO users (role, status, full_name, email, phone_enc, phone_hash, password_hash)
+         VALUES ('parent','active',$1,$2,$3,$4,$5) RETURNING id`,
+        [d.full_name, d.email, encrypt(normalizeSaudiPhone(d.phone)), phoneHash(d.phone), await hashPassword(temp)],
+      );
+      const { rows: st } = await c.query<{ id: string }>(
+        `INSERT INTO students (parent_id, full_name, grade, notes_enc) VALUES ($1,$2,$3,$4) RETURNING id`,
+        [u[0].id, d.student_name, d.grade, encrypt(d.notes)],
+      );
+      let reference: string | null = null;
+      if (plan) {
+        const { rows: s } = await c.query<{ id: string; reference: string }>(
+          `INSERT INTO subscriptions (reference, parent_id, student_id, plan_code, subject, track, price_sar,
+                                      sessions_total, weekly_limit, bonus_sessions, duration_days)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, reference`,
+          [makeReference(), u[0].id, st[0].id, plan.code, plan.all_subjects ? null : d.subject, d.track, plan.price_sar,
+           plan.sessions_count + plan.bonus_sessions, plan.weekly_limit, plan.bonus_sessions, plan.duration_days],
+        );
+        await activateSubscription(c, s[0].id, {
+          orderId: d.salla_order_id || null, actorId: admin.id, note: d.payment_note || "إنشاء حساب من المالك",
+        });
+        reference = s[0].reference;
+      }
+      await audit("admin.create_client", "user", u[0].id, admin.id, { plan: plan?.code ?? null, reference }, c);
+      return { reference };
+    });
+    revalidatePath("/admin", "layout");
+    return {
+      ok: `تم إنشاء الحساب ✓ — البريد: ${d.email} · كلمة المرور المؤقتة: ${temp}` +
+        (result.reference ? ` · الاشتراك ${result.reference} مفعّل الآن` : "") +
+        ` — أرسلها للعميل بشكل خاص (لن تظهر مرة ثانية)، ويقدر يغيرها من «حسابي».`,
+    };
+  } catch (e) {
+    if (isUniqueViolation(e)) return fail("هذا البريد مسجل مسبقاً. ابحث عنه في صفحة أولياء الأمور.", { email: "مسجل مسبقاً" }, values);
+    if ((e as Error).message === "ORDER_USED") return fail("رقم طلب سلة هذا مستخدم في اشتراك آخر.", undefined, values);
+    throw e;
+  }
+}
+
+// Owner: add a manually-activated subscription to an existing family (critical cases)
+export async function addManualSubscriptionAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireRole("admin");
+  const parsed = z.object({
+    student_id: z.string().uuid("اختر الطالب"),
+    plan: z.string().min(1, "اختر الباقة"),
+    subject: z.enum(["math", "arabic", "science"]).optional(),
+    track: z.enum(["remedial", "followup", "exam_prep"]).default("followup"),
+    salla_order_id: z.string().trim().max(60).default(""),
+    payment_note: z.string().trim().max(300).default(""),
+  }).safeParse(Object.fromEntries([...fd.entries()].filter(([, v]) => v !== "")));
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "بيانات ناقصة.");
+  const d = parsed.data;
+  if (!d.salla_order_id && !d.payment_note) return fail("اكتب رقم طلب سلة أو ملاحظة الدفع.");
+  const plan = await one<{ code: string; price_sar: string; sessions_count: number; bonus_sessions: number;
+    weekly_limit: number | null; duration_days: number; all_subjects: boolean }>(`SELECT * FROM plans WHERE code = $1`, [d.plan]);
+  if (!plan) return fail("الباقة غير موجودة.");
+  if (!plan.all_subjects && !d.subject) return fail("اختر المادة.");
+  try {
+    const ref = await tx(async (c) => {
+      const { rows: st } = await c.query<{ parent_id: string }>(`SELECT parent_id FROM students WHERE id = $1`, [d.student_id]);
+      if (!st[0]) throw new Error("NO_STUDENT");
+      if (d.salla_order_id) {
+        const { rows } = await c.query(`SELECT 1 FROM subscriptions WHERE salla_order_id = $1`, [d.salla_order_id]);
+        if (rows[0]) throw new Error("ORDER_USED");
+      }
+      const { rows: s } = await c.query<{ id: string; reference: string }>(
+        `INSERT INTO subscriptions (reference, parent_id, student_id, plan_code, subject, track, price_sar,
+                                    sessions_total, weekly_limit, bonus_sessions, duration_days)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, reference`,
+        [makeReference(), st[0].parent_id, d.student_id, plan.code, plan.all_subjects ? null : d.subject, d.track, plan.price_sar,
+         plan.sessions_count + plan.bonus_sessions, plan.weekly_limit, plan.bonus_sessions, plan.duration_days],
+      );
+      await activateSubscription(c, s[0].id, { orderId: d.salla_order_id || null, actorId: admin.id, note: d.payment_note || "اشتراك يدوي من المالك" });
+      return s[0].reference;
+    });
+    revalidatePath("/admin", "layout");
+    return { ok: `تم تفعيل الاشتراك ${ref}.` };
+  } catch (e) {
+    const m = (e as Error).message;
+    if (m === "ORDER_USED") return fail("رقم طلب سلة هذا مستخدم في اشتراك آخر.");
+    if (m === "NO_STUDENT") return fail("الطالب غير موجود.");
+    throw e;
+  }
 }
