@@ -4,6 +4,7 @@ loadEnvConfig(process.cwd());
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Client } from "pg";
+import { hash } from "@node-rs/argon2";
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -34,8 +35,30 @@ async function main() {
       throw e;
     }
   }
-  await client.end();
   console.log("migrations up to date");
+
+  // One-time owner bootstrap: only runs when NO admin exists yet.
+  const email = process.env.OWNER_EMAIL?.trim().toLowerCase();
+  const pw = process.env.OWNER_PASSWORD;
+  if (email && pw) {
+    const { rows: admins } = await client.query("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1");
+    if (admins.length) {
+      console.log("owner bootstrap skipped (an owner already exists) — you can clear OWNER_PASSWORD");
+    } else if (pw.length < 12) {
+      console.log("owner bootstrap skipped: OWNER_PASSWORD must be at least 12 characters");
+    } else {
+      const ph = await hash(pw, { memoryCost: 19456, timeCost: 2, parallelism: 1 });
+      const { rows } = await client.query(
+        `INSERT INTO users (role, status, full_name, email, password_hash) VALUES ('admin','active',$1,$2,$3)
+         ON CONFLICT (email) DO UPDATE SET role = 'admin', status = 'active', password_hash = EXCLUDED.password_hash
+         RETURNING id`,
+        [process.env.OWNER_NAME || "مالك غِراس", email, ph],
+      );
+      await client.query(`INSERT INTO audit_log (action, entity, entity_id, data) VALUES ('owner.bootstrap','user',$1,'{}')`, [rows[0].id]);
+      console.log("owner account created:", email);
+    }
+  }
+  await client.end();
 }
 
 main().catch((e) => {
