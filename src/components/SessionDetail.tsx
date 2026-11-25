@@ -27,7 +27,7 @@ export function SessionDetail({ b, viewer, studentNotes, children }: {
 
         <section className="mt-6">
           <h2 className="text-lg font-semibold">وصف الحصة</h2>
-          <p className="mt-2 whitespace-pre-line rounded-xl bg-wash p-4">{b.description || "ما فيه وصف مضاف — المعلمة تمشي حسب المسار والمنهج."}</p>
+          <p className="mt-2 whitespace-pre-line rounded-xl bg-wash p-4">{b.description || "لم يُضف وصف، وستسير المعلمة وفق المسار والمنهج."}</p>
         </section>
 
         {studentNotes && (
@@ -39,7 +39,7 @@ export function SessionDetail({ b, viewer, studentNotes, children }: {
 
         {b.teacher_notes && (
           <section className="mt-6">
-            <h2 className="text-lg font-semibold">تقرير المعلمة بعد الحصة</h2>
+            <h2 className="text-lg font-semibold">ملاحظات المعلمة بعد الحصة</h2>
             <p className="mt-2 whitespace-pre-line rounded-xl border-r-4 border-sky-300 bg-sky-50 p-4">{b.teacher_notes}</p>
           </section>
         )}
@@ -51,7 +51,7 @@ export function SessionDetail({ b, viewer, studentNotes, children }: {
         {b.status === "scheduled" && js !== "closed" ? (
           <>
             <p className="mt-2 text-[.95rem] text-muted">
-              {js === "open" ? "الحصة مفتوحة الآن، ادخل مباشرة." : `الرابط جاهز. يفضّل الدخول قبل الموعد بـ${JOIN_OPENS_MINUTES} دقيقة.`}
+              {js === "open" ? "الحصة مفتوحة الآن، ادخل مباشرة." : `الرابط جاهز. يُفضَّل الدخول قبل الموعد بـ${JOIN_OPENS_MINUTES} دقيقة.`}
             </p>
             <div className="mt-4"><TeamsButton b={b} size="w-full" /></div>
             <p className="mt-4 break-all text-xs text-muted" dir="ltr">{b.teams_link}</p>

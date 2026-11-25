@@ -4,8 +4,8 @@ import { site } from "@/config/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
-  title: { default: `${site.name} | دروس خصوصية أونلاين للابتدائي والمتوسط`, template: `%s | ${site.name}` },
-  description: "حصص خصوصية أونلاين عبر Teams في الرياضيات ولغتي والعلوم، للصفوف من الأول الابتدائي إلى الثالث المتوسط، بإشراف المعلمة غادة القرني.",
+  title: { default: `${site.name} | حصص خصوصية فردية أونلاين للابتدائي والمتوسط`, template: `%s | ${site.name}` },
+  description: "حصص خصوصية فردية لابنك أونلاين عبر Teams في الرياضيات ولغتي والعلوم، للصفوف من الأول الابتدائي إلى الثالث المتوسط، بإشراف المعلمة غادة القرني.",
   openGraph: { locale: "ar_SA", type: "website", siteName: site.name },
 };
 

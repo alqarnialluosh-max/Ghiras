@@ -36,16 +36,16 @@ export function BookConfirm({ subscriptionId, studentId, subject, date, minute, 
       </fieldset>
 
       <div className="field">
-        <label htmlFor="description">وش تبون تركز عليه الحصة؟ (يظهر للمعلمة)</label>
+        <label htmlFor="description">ما الذي تودّون التركيز عليه في الحصة؟ (يظهر للمعلمة)</label>
         <textarea id="description" name="description" className="input" maxLength={1000}
           placeholder="مثلاً: مراجعة درس الكسور وحل واجب صفحة 42" />
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl bg-wash p-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-[.95rem]">{summary}</p>
-        <SubmitButton className="btn btn-primary" pending="جاري الحجز...">أكّد الحجز</SubmitButton>
+        <SubmitButton className="btn btn-primary" pending="جارٍ الحجز...">أكّد الحجز</SubmitButton>
       </div>
-      <p className="text-sm text-muted">الحصص المؤكدة ما تنلغي من الموقع. لأي ظرف تواصل مع الإدارة قبل الموعد لإعادة الجدولة.</p>
+      <p className="text-sm text-muted">لا تُلغى الحصص المؤكدة من الموقع. وإذا طرأ ظرف، تواصل مع الإدارة قبل الموعد لإعادة الجدولة.</p>
     </form>
   );
 }

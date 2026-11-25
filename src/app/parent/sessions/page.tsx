@@ -12,16 +12,16 @@ export default async function ParentSessions() {
   ]);
   return (
     <>
-      <PageTitle title="الحصص" sub="كل حصة محفوظة في سجل الطالب مع تقرير المعلمة." />
+      <PageTitle title="الحصص" sub="كل حصة محفوظة في سجل الطالب مع ملاحظات المعلمة." />
       <section className="mb-10" aria-labelledby="u">
         <h2 id="u" className="mb-3 text-xl">القادمة</h2>
         {upcoming.length ? <div className="space-y-3">{upcoming.map((b) => <SessionCard key={b.id} b={b} viewer="parent" />)}</div>
-          : <Empty title="ما فيه حصص قادمة" />}
+          : <Empty title="لا توجد حصص قادمة" />}
       </section>
       <section aria-labelledby="p">
         <h2 id="p" className="mb-3 text-xl">السجل</h2>
         {past.length ? <div className="space-y-3">{past.map((b) => <SessionCard key={b.id} b={b} viewer="parent" />)}</div>
-          : <Empty title="السجل فاضي حالياً" />}
+          : <Empty title="السجل فارغ حالياً" />}
       </section>
     </>
   );

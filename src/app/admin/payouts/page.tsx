@@ -15,7 +15,7 @@ export default async function AdminPayouts() {
       <PageTitle title="أجور المعلمات" sub={`${rate} ريال عن كل حصة مكتملة أو غاب فيها الطالب. سجّل الدفعة بعد التحويل للمعلمة.`} />
       <section className="mb-10">
         <h2 className="mb-3 text-xl">المستحقات الشهرية</h2>
-        {months.length === 0 ? <Empty title="ما فيه حصص محتسبة بعد" /> : (
+        {months.length === 0 ? <Empty title="لا توجد حصص محتسبة بعد" /> : (
           <div className="panel overflow-x-auto">
             <table className="table">
               <thead><tr><th>المعلمة</th><th>الشهر</th><th>الحصص</th><th>المستحق</th><th></th></tr></thead>
@@ -39,7 +39,7 @@ export default async function AdminPayouts() {
       </section>
       <section>
         <h2 className="mb-3 text-xl">الدفعات المسجلة</h2>
-        {payouts.length === 0 ? <Empty title="ما فيه دفعات مسجلة" /> : (
+        {payouts.length === 0 ? <Empty title="لا توجد دفعات مسجلة" /> : (
           <div className="panel overflow-x-auto">
             <table className="table">
               <thead><tr><th>المعلمة</th><th>الفترة</th><th>الحصص</th><th>المبلغ</th><th>تاريخ التسجيل</th></tr></thead>

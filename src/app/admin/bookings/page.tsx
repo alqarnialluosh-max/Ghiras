@@ -16,7 +16,7 @@ export default async function AdminBookings({ searchParams }: { searchParams: Pr
   const rows = await allBookings({ from: riyadhToUtc(from, 0), to: riyadhToUtc(addDaysKey(to, 1), 0), status });
   return (
     <>
-      <PageTitle title="الحصص" sub="كل الحصص محفوظة. الحصة ما تنحذف؛ تتغير حالتها أو تُعاد جدولتها مع الاحتفاظ بالأصل." />
+      <PageTitle title="الحصص" sub="جميع الحصص محفوظة. لا تُحذف الحصة، وإنما تتغير حالتها أو تُعاد جدولتها مع الاحتفاظ بالأصل." />
       <form className="panel mb-6 grid gap-3 p-4 sm:grid-cols-4 sm:items-end">
         <div className="field"><label htmlFor="from">من</label><input id="from" type="date" name="from" defaultValue={from} className="input" /></div>
         <div className="field"><label htmlFor="to">إلى</label><input id="to" type="date" name="to" defaultValue={to} className="input" /></div>
@@ -28,7 +28,7 @@ export default async function AdminBookings({ searchParams }: { searchParams: Pr
         <button className="btn btn-primary">عرض</button>
       </form>
       <p className="mb-3 text-sm text-muted">{rows.length} حصة · <Link href="/admin/bookings" className="underline">إعادة الضبط</Link></p>
-      {rows.length === 0 ? <Empty title="ما فيه حصص في هذه الفترة" /> :
+      {rows.length === 0 ? <Empty title="لا توجد حصص في هذه الفترة" /> :
         <div className="space-y-3">{rows.map((b) => <SessionCard key={b.id} b={b} viewer="admin" />)}</div>}
     </>
   );

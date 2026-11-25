@@ -26,7 +26,7 @@ export default async function TeacherProfilePage() {
               <a href={`/api/documents/${cv.id}`} className="text-lav-700 underline">{cv.filename}</a>
               <span className="block text-sm text-muted">{fileSize(cv.size_bytes)} · رُفعت {shortDate(cv.created_at)}</span>
             </p>
-          ) : <p className="alert alert-error mb-4">ما رفعتي السيرة الذاتية. مطلوبة قبل اعتماد حسابك.</p>}
+          ) : <p className="alert alert-error mb-4">لم ترفعي السيرة الذاتية بعد، وهي مطلوبة قبل اعتماد حسابك.</p>}
           <CvForm hasCv={!!cv} />
         </section>
       </div>

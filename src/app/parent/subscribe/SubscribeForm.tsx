@@ -68,10 +68,10 @@ export function SubscribeForm({ plans, students, initialPlan }: {
       </fieldset>
 
       <div className="rounded-2xl bg-wash p-5 text-[.95rem]">
-        بعد الضغط بننقلك لمتجر غِراس في <strong>سلة</strong> لإتمام الدفع. استخدم نفس <strong>البريد أو رقم الجوال</strong> المسجل في حسابك، ويتفعل الاشتراك تلقائياً.
+        بعد الضغط سننقلك إلى متجر غِراس في <strong>سلة</strong> لإتمام الدفع. استخدم <strong>البريد أو رقم الجوال</strong> نفسه المسجل في حسابك، وسيُفعَّل الاشتراك تلقائياً.
       </div>
-      <SubmitButton className="btn btn-primary w-full sm:w-auto" pending="جاري التحويل..." disabled={current && !current.hasLink}>
-        {current?.hasLink === false ? "رابط الدفع لهذه الباقة غير جاهز بعد" : `انتقل للدفع${current ? ` — ${current.price} ريال` : ""}`}
+      <SubmitButton className="btn btn-primary w-full sm:w-auto" pending="جارٍ التحويل..." disabled={current && !current.hasLink}>
+        {current?.hasLink === false ? "رابط الدفع لهذه الباقة غير متاح بعد" : `انتقل للدفع${current ? ` — ${current.price} ريال` : ""}`}
       </SubmitButton>
     </form>
   );

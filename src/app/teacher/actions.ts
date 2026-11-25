@@ -32,7 +32,7 @@ export async function updateProfileAction(_: ActionState, fd: FormData): Promise
   );
   await audit("teacher.profile_update", "user", user.id, user.id);
   revalidatePath("/teacher", "layout");
-  return { ok: "تم حفظ ملفك. الحصص الجديدة تأخذ رابط Teams المحدّث، والحصص المحجوزة تبقى على رابطها." };
+  return { ok: "تم حفظ ملفك. تأخذ الحصص الجديدة رابط Teams المحدّث، وتبقى الحصص المحجوزة على رابطها." };
 }
 
 const time = z.string().regex(/^\d{2}:\d{2}$/, "وقت غير صحيح").transform((v) => {
@@ -92,13 +92,13 @@ export async function addTimeOffAction(_: ActionState, fd: FormData): Promise<Ac
     [user.id, s, e],
   );
   if (Number(clash?.n) > 0) {
-    return fail(`عندك ${clash!.n} حصص محجوزة في هذه الفترة. تواصلي مع الإدارة لإعادة جدولتها أولاً.`);
+    return fail(`لديك ${clash!.n} حصص محجوزة في هذه الفترة. تواصلي مع الإدارة لإعادة جدولتها أولاً.`);
   }
   await q(`INSERT INTO availability_exceptions (teacher_id, during, reason) VALUES ($1, tstzrange($2,$3,'[)'), $4)`,
     [user.id, s, e, parsed.data.reason]);
   await audit("timeoff.add", "user", user.id, user.id, { from: parsed.data.from, to: parsed.data.to });
   revalidatePath("/teacher/availability");
-  return { ok: "تم تسجيل الإجازة، وما راح تظهر أوقاتك فيها للحجز." };
+  return { ok: "تم تسجيل الإجازة، ولن تظهر أوقاتك خلالها للحجز." };
 }
 
 export async function deactivateTimeOffAction(fd: FormData) {
@@ -124,12 +124,12 @@ export async function updateSessionAction(_: ActionState, fd: FormData): Promise
     `SELECT status, starts_at FROM bookings WHERE id = $1 AND teacher_id = $2`, [d.id, user.id]);
   if (!b) return fail("الحصة غير موجودة.");
   if (!["scheduled", "completed", "student_absent"].includes(b.status)) return fail("حالة هذه الحصة تديرها الإدارة.");
-  if (d.status !== "scheduled" && b.starts_at.getTime() > Date.now()) return fail("تقدرين تحددين الحضور بعد بداية الحصة.");
+  if (d.status !== "scheduled" && b.starts_at.getTime() > Date.now()) return fail("يمكنك تحديد الحضور بعد بداية الحصة.");
   await q(`UPDATE bookings SET status = $3, teacher_notes = $4 WHERE id = $1 AND teacher_id = $2`,
     [d.id, user.id, d.status, d.teacher_notes || null]);
   await audit("booking.teacher_update", "booking", d.id, user.id, { from: b.status, to: d.status });
   revalidatePath("/teacher", "layout");
-  return { ok: "تم الحفظ، والتقرير يظهر لولي الأمر." };
+  return { ok: "تم الحفظ، وتظهر ملاحظاتك لولي الأمر." };
 }
 
 export async function replaceCvAction(_: ActionState, fd: FormData): Promise<ActionState> {

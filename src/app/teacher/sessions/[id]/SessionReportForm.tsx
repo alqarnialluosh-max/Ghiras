@@ -11,7 +11,7 @@ export function SessionReportForm({ id, status, notes }: { id: string; status: s
       <input type="hidden" name="id" value={id} />
       <fieldset className="flex flex-wrap gap-3">
         <legend className="sr-only">الحضور</legend>
-        {[["completed", "تمت الحصة"], ["student_absent", "الطالب غاب"]].map(([v, l]) => (
+        {[["completed", "تمت الحصة"], ["student_absent", "تغيّب الطالب"]].map(([v, l]) => (
           <label key={v} className="flex cursor-pointer items-center gap-2 rounded-full border-[1.5px] border-line px-4 py-2 has-[:checked]:border-lav-400 has-[:checked]:bg-lav-100">
             <input type="radio" name="status" value={v} defaultChecked={status === v || (status === "scheduled" && v === "completed")} className="accent-lav-700" />
             {l}
@@ -19,11 +19,11 @@ export function SessionReportForm({ id, status, notes }: { id: string; status: s
         ))}
       </fieldset>
       <div className="field">
-        <label htmlFor="teacher_notes">تقرير لولي الأمر</label>
+        <label htmlFor="teacher_notes">ملاحظات لولي الأمر (اختياري)</label>
         <textarea id="teacher_notes" name="teacher_notes" className="input" defaultValue={notes} maxLength={2000}
-          placeholder="وش أخذتوا اليوم، مستوى الطالب، وش يحتاج يراجع قبل الحصة الجاية" />
+          placeholder="ما الذي تم شرحه اليوم، ومستوى الطالب، وما يحتاج إلى مراجعته قبل الحصة القادمة" />
       </div>
-      <SubmitButton className="btn btn-primary" pending="جاري الحفظ...">احفظي التقرير</SubmitButton>
+      <SubmitButton className="btn btn-primary" pending="جارٍ الحفظ...">احفظي</SubmitButton>
     </form>
   );
 }

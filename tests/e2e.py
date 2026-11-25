@@ -4,6 +4,7 @@ from playwright.async_api import async_playwright, expect
 BASE = "http://localhost:3000"
 R = random.randint(1000, 9999)
 T_EMAIL, P_EMAIL = f"teacher{R}@test.sa", f"parent{R}@test.sa"
+TNAME = f"نورة العتيبي {R}"
 PW = "Passw0rd123"
 TEAMS = "https://teams.microsoft.com/l/meetup-join/19%3ameeting_TEST%40thread.v2/0"
 
@@ -21,7 +22,7 @@ async def main():
         tctx = await b.new_context(viewport={"width": 1280, "height": 900})
         t = await tctx.new_page()
         await t.goto(f"{BASE}/teachers/join")
-        await t.fill("#f-full_name", "نورة العتيبي")
+        await t.fill("#f-full_name", TNAME)
         await t.fill("#f-email", T_EMAIL)
         await t.fill("#f-phone", "0551234567")
         await t.fill("#f-password", PW)
@@ -40,7 +41,7 @@ async def main():
         await t.set_input_files("#cv", "tests/fake.pdf")
         await t.check("input[name=consent]")
         await t.click("button[type=submit]")
-        await expect(t.get_by_text("الملف لازم يكون PDF")).to_be_visible()
+        await expect(t.get_by_text("يجب أن يكون الملف بصيغة PDF")).to_be_visible()
         step("teacher join rejects missing CV and fake files")
         await t.fill("#f-password", PW)
         await t.set_input_files("#cv", "tests/cv.pdf")
@@ -49,6 +50,12 @@ async def main():
         await t.wait_for_url(f"{BASE}/teacher")
         await expect(t.get_by_text("طلبك قيد المراجعة")).to_be_visible()
         step("teacher registered (pending)")
+        await t.goto(f"{BASE}/teacher/earnings")
+        await expect(t.get_by_text("يتحدد أجر الحصة بعد المقابلة والقبول")).to_be_visible()
+        assert "35" not in await t.inner_text("main")
+        pub = await (await tctx.request.get(f"{BASE}/terms")).text()
+        assert "يُحدَّد أجر الحصة" in pub and "35 ريال" not in pub and "<strong>35" not in pub
+        step("pay rate hidden: public terms + pending teacher see no amounts")
 
         await t.goto(f"{BASE}/teacher/profile")
         await t.fill("#f-teams_link", TEAMS)
@@ -75,15 +82,19 @@ async def main():
         await a.click("button[type=submit]")
         await a.wait_for_url(f"{BASE}/admin")
         await a.goto(f"{BASE}/admin/teachers")
-        await a.locator("details", has_text="نورة العتيبي").locator("button:has-text('اعتماد المعلمة')").click()
-        await expect(a.locator("details", has_text="نورة العتيبي").get_by_text("معتمدة").first).to_be_visible()
+        await a.locator("details", has_text=TNAME).locator("button:has-text('اعتماد المعلمة')").click()
+        await expect(a.locator("details", has_text=TNAME).get_by_text("معتمدة").first).to_be_visible()
         step("admin approved teacher")
-        cv_link = a.locator("details", has_text="نورة العتيبي").locator("a:has-text('تحميل السيرة الذاتية')").first
+        cv_link = a.locator("details", has_text=TNAME).locator("a:has-text('تحميل السيرة الذاتية')").first
         href = await cv_link.get_attribute("href")
         resp = await a.request.get(BASE + href)
         assert resp.status == 200 and (await resp.body()).startswith(b"%PDF"), resp.status
         CV_HREF = href
         step("owner downloads the teacher's CV")
+        await t.goto(f"{BASE}/teacher/earnings")
+        await expect(t.get_by_text("شروط الأجر (خاصة بك)")).to_be_visible()
+        await expect(t.locator("strong", has_text="35 ريال")).to_be_visible()
+        step("approved teacher sees her private pay terms")
 
         # ---- Configure Salla link for the plan (as admin would in /admin/plans)
         await a.goto(f"{BASE}/admin/plans")
@@ -154,7 +165,8 @@ async def main():
         await pg.wait_for_load_state("networkidle")
         await pg.locator("a[href*='minute=']").first.click()
         await pg.wait_for_load_state("networkidle")
-        await expect(pg.get_by_text("نورة العتيبي")).to_be_visible()
+        await expect(pg.get_by_text(TNAME)).to_be_visible()
+        await pg.locator("label", has_text=TNAME).click()
         await pg.fill("#description", "مراجعة الكسور العشرية وحل واجب صفحة 42")
         await pg.screenshot(path="/tmp/s_book.png", full_page=True)
         await pg.click("button:has-text('أكّد الحجز')")
@@ -219,7 +231,7 @@ async def main():
         step("owner dashboard renders money, subscribers, activation")
 
         await a.goto(f"{BASE}/admin/teachers/stats")
-        row = a.locator("tr", has_text="نورة العتيبي").first
+        row = a.locator("tr", has_text=TNAME).first
         await expect(row).to_contain_text("35")
         await a.screenshot(path="/tmp/s_owner_teachers.png", full_page=True)
         step("teacher stats: completed session counted, 35 SAR owed")
@@ -265,7 +277,7 @@ async def main():
         # ================= ACCOUNTING =================
         inc = sql(f"SELECT count(*) FROM ledger_entries l JOIN subscriptions s ON s.id::text = l.source_id WHERE l.source='subscription' AND s.salla_order_id='{98765000 + R}'").stdout.strip()
         assert inc == "1", inc
-        exp = sql(f"SELECT count(*) FROM ledger_entries WHERE source='teacher_payout' AND description LIKE '%نورة العتيبي%'").stdout.strip()
+        exp = sql(f"SELECT count(*) FROM ledger_entries WHERE source='teacher_payout' AND description LIKE '%{TNAME}%'").stdout.strip()
         assert int(exp) >= 1
         step("Salla payment auto-posted as income; teacher payout auto-posted as expense")
 

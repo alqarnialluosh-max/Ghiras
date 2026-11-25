@@ -18,7 +18,7 @@ export async function addStudentAction(_: ActionState, fd: FormData): Promise<Ac
   const parsed = studentSchema.safeParse(Object.fromEntries(fd));
   if (!parsed.success) return fail("راجع الحقول المظللة.", fieldErrorsOf(parsed.error), values);
   const count = await one<{ n: string }>(`SELECT count(*) n FROM students WHERE parent_id = $1`, [user.id]);
-  if (Number(count?.n) >= 10) return fail("وصلت للحد الأعلى من الأبناء في الحساب. تواصل معنا.");
+  if (Number(count?.n) >= 10) return fail("بلغت الحد الأعلى لعدد الأبناء في الحساب. تواصل معنا.");
   const row = await one<{ id: string }>(
     `INSERT INTO students (parent_id, full_name, grade, notes_enc) VALUES ($1,$2,$3,$4) RETURNING id`,
     [user.id, parsed.data.full_name, parsed.data.grade, encrypt(parsed.data.notes)],
@@ -77,7 +77,7 @@ export async function subscribeAction(_: ActionState, fd: FormData): Promise<Act
     throw e;
   }
   if (!plan.salla_url) {
-    return fail("رابط الدفع لهذه الباقة غير مضاف بعد. سجلنا طلبك وبنتواصل معك، أو حاول لاحقاً.", undefined, values);
+    return fail("لم يُضف رابط الدفع لهذه الباقة بعد. سجّلنا طلبك وسنتواصل معك، أو حاول لاحقاً.", undefined, values);
   }
   redirect(plan.salla_url);
 }

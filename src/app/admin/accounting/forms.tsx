@@ -38,7 +38,7 @@ export function AddEntryForm({ income, expense, today }: { income: string[]; exp
       </div>
       <Field name="description" label="الوصف" placeholder={kind === "income" ? "مثلاً: دفعة نقدية من ولي أمر" : "مثلاً: إعلان سناب شات لشهر ديسمبر"} state={state} />
       <Field name="salla_order_id" label="رقم طلب سلة (اختياري)" dir="ltr" state={state} />
-      <SubmitButton className="btn btn-primary w-full" pending="جاري الحفظ...">سجّل {kind === "income" ? "الإيراد" : "المصروف"}</SubmitButton>
+      <SubmitButton className="btn btn-primary w-full" pending="جارٍ الحفظ...">سجّل {kind === "income" ? "الإيراد" : "المصروف"}</SubmitButton>
     </form>
   );
 }

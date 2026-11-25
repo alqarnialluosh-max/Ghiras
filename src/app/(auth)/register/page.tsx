@@ -13,9 +13,9 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <h1 className="text-3xl">حساب ولي أمر جديد</h1>
-      <p className="mb-8 mt-2 text-muted">حساب واحد يكفي لكل أبنائك. تضيفهم بعد التسجيل.</p>
+      <p className="mb-8 mt-2 text-muted">حساب واحد يكفي لجميع أبنائك، ويمكنك إضافتهم بعد التسجيل.</p>
       <RegisterForm next={next} />
-      <p className="mt-8 text-[.95rem] text-muted">عندك حساب؟ <Link href="/login" className="font-medium text-lav-700 underline">سجّل الدخول</Link></p>
+      <p className="mt-8 text-[.95rem] text-muted">لديك حساب؟ <Link href="/login" className="font-medium text-lav-700 underline">سجّل الدخول</Link></p>
     </>
   );
 }

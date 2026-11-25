@@ -21,7 +21,7 @@ export default async function TeacherHome() {
   ]);
   const approved = !!profile?.approved_at && user.status === "active";
   const missing = [
-    !profile?.teams_link && { href: "/teacher/profile", text: "أضيفي رابط اجتماع Teams الدائم — بدونه ما تظهرين للحجز." },
+    !profile?.teams_link && { href: "/teacher/profile", text: "أضيفي رابط اجتماع Teams الدائم، فبدونه لن تظهري للحجز." },
     Number(rules?.n) === 0 && { href: "/teacher/availability", text: "حددي أوقاتك الأسبوعية المتاحة." },
   ].filter(Boolean) as { href: string; text: string }[];
 
@@ -32,7 +32,7 @@ export default async function TeacherHome() {
       {!approved && (
         <div className="panel mb-8 border-sky-300 bg-sky-50 p-6">
           <p className="font-medium">طلبك قيد المراجعة</p>
-          <p className="mt-1 text-muted">تراجع {site.supervisor.name} طلبك، وبعد الموافقة تظهرين لأولياء الأمور. جهّزي ملفك وأوقاتك من الحين.</p>
+          <p className="mt-1 text-muted">تراجع {site.supervisor.name} طلبك، وبعد الموافقة ستظهرين لأولياء الأمور. يمكنك تجهيز ملفك وأوقاتك من الآن.</p>
         </div>
       )}
 
@@ -44,10 +44,10 @@ export default async function TeacherHome() {
         </ul>
       )}
 
-      <div className="mb-10 grid gap-4 sm:grid-cols-3">
+      <div className={`mb-10 grid gap-4 ${approved ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <div className="panel p-5"><p className="text-sm text-muted">حصص قادمة</p><p className="font-display text-3xl">{upcoming.length}</p></div>
         <div className="panel p-5"><p className="text-sm text-muted">حصص هذا الشهر</p><p className="font-display text-3xl">{month?.n ?? 0}</p></div>
-        <div className="panel p-5"><p className="text-sm text-muted">مستحق هذا الشهر</p><p className="font-display text-3xl">{Number(month?.n ?? 0) * env.teacherRateSar} <span className="text-base text-muted">ريال</span></p></div>
+        {approved && <div className="panel p-5"><p className="text-sm text-muted">مستحق هذا الشهر</p><p className="font-display text-3xl">{Number(month?.n ?? 0) * env.teacherRateSar} <span className="text-base text-muted">ريال</span></p></div>}
       </div>
 
       <section aria-labelledby="up">
@@ -56,7 +56,7 @@ export default async function TeacherHome() {
           <Link href="/teacher/sessions" className="text-[.95rem] text-lav-700 underline">كل الحصص</Link>
         </div>
         {upcoming.length ? <div className="space-y-3">{upcoming.map((b) => <SessionCard key={b.id} b={b} viewer="teacher" />)}</div>
-          : <Empty title="ما فيه حصص قادمة حالياً" />}
+          : <Empty title="لا توجد حصص قادمة حالياً" />}
       </section>
     </>
   );

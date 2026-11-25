@@ -27,7 +27,7 @@ export default async function AdminParents({ searchParams }: { searchParams: Pro
       <PageTitle title="أولياء الأمور" sub="الجوالات تُفك من التشفير هنا فقط للمالك."
         action={<a href="/admin/clients/new" className="btn btn-primary btn-sm">إنشاء حساب عميل</a>} />
       <form className="mb-6"><input name="q" defaultValue={term} placeholder="بحث بالاسم أو البريد" className="input max-w-sm" /></form>
-      {rows.length === 0 ? <Empty title="ما فيه نتائج" /> : (
+      {rows.length === 0 ? <Empty title="لا توجد نتائج" /> : (
         <div className="space-y-3">
           {rows.map((r) => (
             <details key={r.id} className="panel p-5">

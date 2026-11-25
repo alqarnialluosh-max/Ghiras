@@ -20,10 +20,10 @@ export function CreateClientForm({ plans }: { plans: P[] }) {
         <h2 className="text-lg">ولي الأمر</h2>
         <div className="grid gap-4 md:grid-cols-3">
           <Field name="full_name" label="الاسم" required state={state} />
-          <Field name="email" label="البريد الإلكتروني" type="email" dir="ltr" required state={state} hint="يدخل فيه العميل، ولازم يكون نفس بريد الدفع في سلة." />
+          <Field name="email" label="البريد الإلكتروني" type="email" dir="ltr" required state={state} hint="يسجّل به العميل دخوله، ويجب أن يطابق بريد الدفع في سلة." />
           <Field name="phone" label="الجوال" type="tel" dir="ltr" placeholder="05XXXXXXXX" required state={state} />
         </div>
-        <p className="text-sm text-muted">تنشأ كلمة مرور مؤقتة تلقائياً وتظهر لك مرة وحدة بعد الحفظ.</p>
+        <p className="text-sm text-muted">تُنشأ كلمة مرور مؤقتة تلقائياً وتظهر لك مرة واحدة بعد الحفظ.</p>
       </section>
 
       <section className="panel space-y-4 p-6">
@@ -80,10 +80,10 @@ export function CreateClientForm({ plans }: { plans: P[] }) {
             <Field name="payment_note" label="ملاحظة الدفع" placeholder="مثلاً: تحويل بنكي — الراجحي 25 نوفمبر" state={state} />
           </div>
         )}
-        {current && <p className="alert alert-info">الاشتراك يتفعل فوراً ويبدأ عدّ المدة من الآن، ويتسجل باسمك في سجل العمليات.</p>}
+        {current && <p className="alert alert-info">يُفعَّل الاشتراك فوراً وتبدأ مدته من الآن، ويُسجَّل باسمك في سجل العمليات.</p>}
       </section>
 
-      <SubmitButton className="btn btn-primary" pending="جاري الإنشاء...">إنشاء الحساب</SubmitButton>
+      <SubmitButton className="btn btn-primary" pending="جارٍ الإنشاء...">إنشاء الحساب</SubmitButton>
     </form>
   );
 }

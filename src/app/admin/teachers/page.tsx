@@ -11,8 +11,8 @@ export default async function AdminTeachers() {
   const teachers = await allTeachers();
   return (
     <>
-      <PageTitle title="المعلمات" sub="راجعي الطلبات الجديدة، واعتمدي المعلمة قبل ما تظهر لأولياء الأمور." />
-      {teachers.length === 0 ? <Empty title="ما فيه معلمات مسجلات بعد" /> : (
+      <PageTitle title="المعلمات" sub="راجع الطلبات الجديدة، واعتمد المعلمة قبل أن تظهر لأولياء الأمور." />
+      {teachers.length === 0 ? <Empty title="لا توجد معلمات مسجلات بعد" /> : (
         <div className="space-y-4">
           {teachers.map((t) => (
             <details key={t.user_id} className="panel p-5" open={t.status === "pending"}>

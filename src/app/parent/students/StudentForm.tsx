@@ -25,10 +25,10 @@ export function StudentForm({ student, next }: {
       <div className="field">
         <label htmlFor={`notes-${student?.id ?? "new"}`}>ملاحظات للمعلمة (اختياري)</label>
         <textarea id={`notes-${student?.id ?? "new"}`} name="notes" className="input" maxLength={1000}
-          defaultValue={state.values?.notes ?? student?.notes} placeholder="مثلاً: يحتاج تأسيس في جدول الضرب" />
+          defaultValue={state.values?.notes ?? student?.notes} placeholder="مثلاً: يحتاج إلى تأسيس في جدول الضرب" />
         <p className="hint">تُحفظ مشفّرة، وتظهر فقط لمعلمات الطالب.</p>
       </div>
-      <SubmitButton className="btn btn-primary" pending="جاري الحفظ...">{student ? "حفظ التعديل" : "أضف الطالب"}</SubmitButton>
+      <SubmitButton className="btn btn-primary" pending="جارٍ الحفظ...">{student ? "حفظ التعديل" : "أضف الطالب"}</SubmitButton>
     </form>
   );
 }

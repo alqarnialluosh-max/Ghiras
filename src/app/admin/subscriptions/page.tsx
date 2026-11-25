@@ -36,7 +36,7 @@ export default async function AdminSubscriptions({ searchParams }: { searchParam
 
   return (
     <>
-      <PageTitle title="الاشتراكات" sub="الاشتراكات المدفوعة ما تنلغي. الطلبات غير المدفوعة فقط يمكن إبطالها." />
+      <PageTitle title="الاشتراكات" sub="لا تُلغى الاشتراكات المدفوعة، ويمكن إبطال الطلبات غير المدفوعة فقط." />
       <form className="mb-6 flex flex-wrap items-center gap-2">
         {FILTERS.map(([k, l]) => (
           <Link key={k} href={`/admin/subscriptions${k ? `?status=${k}` : ""}`}
@@ -45,7 +45,7 @@ export default async function AdminSubscriptions({ searchParams }: { searchParam
         <input name="q" defaultValue={term} placeholder="بحث: رقم الطلب، البريد، الاسم" className="input mr-auto max-w-xs" />
         {status && <input type="hidden" name="status" value={status} />}
       </form>
-      {subs.length === 0 ? <Empty title="ما فيه اشتراكات بهذا الفلتر" /> : (
+      {subs.length === 0 ? <Empty title="لا توجد اشتراكات بهذه التصفية" /> : (
         <div className="space-y-3">
           {subs.map((s) => (
             <details key={s.id} className="panel p-5">

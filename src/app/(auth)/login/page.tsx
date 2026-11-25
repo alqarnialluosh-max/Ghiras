@@ -13,12 +13,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <h1 className="text-3xl">أهلاً بعودتك</h1>
-      <p className="mb-8 mt-2 text-muted">ادخل لحسابك في غِراس — أولياء الأمور والمعلمات من نفس المكان.</p>
+      <p className="mb-8 mt-2 text-muted">سجّل الدخول إلى حسابك في غِراس، لأولياء الأمور والمعلمات.</p>
       <LoginForm next={next} />
       <div className="mt-8 space-y-2 text-[.95rem] text-muted">
-        <p>ما عندك حساب؟ <Link href={`/register${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-medium text-lav-700 underline">أنشئ حساب ولي أمر</Link></p>
-        <p>معلمة؟ <Link href="/teachers/join" className="font-medium text-lav-700 underline">قدّمي طلب انضمام</Link></p>
-        <p>نسيت كلمة المرور؟ راسلنا <a href="https://wa.me/966565975402" target="_blank" rel="noopener noreferrer" className="font-medium text-lav-700 underline">واتساب</a> ونعيد تعيينها لك.</p>
+        <p>ليس لديك حساب؟ <Link href={`/register${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-medium text-lav-700 underline">أنشئ حساب ولي أمر</Link></p>
+        <p>هل أنتِ معلمة؟ <Link href="/teachers/join" className="font-medium text-lav-700 underline">قدّمي طلب انضمام</Link></p>
+        <p>نسيت كلمة المرور؟ راسلنا <a href="https://wa.me/966565975402" target="_blank" rel="noopener noreferrer" className="font-medium text-lav-700 underline">واتساب</a> لإعادة تعيينها.</p>
       </div>
     </>
   );

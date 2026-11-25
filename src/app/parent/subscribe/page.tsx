@@ -18,8 +18,8 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
         <PageTitle title="اشتراك جديد" />
         <div className="panel p-6">
           <p className="font-medium">أضف الطالب أولاً</p>
-          <p className="mt-1 text-muted">نحتاج اسم الطالب وصفه عشان نربط الاشتراك فيه ونعرض المعلمات المناسبات.</p>
-          <Link href="/parent/students?next=subscribe" className="btn btn-primary mt-4">أضف طالب</Link>
+          <p className="mt-1 text-muted">نحتاج إلى اسم الطالب وصفه لنربط الاشتراك به ونعرض المعلمات المناسبات.</p>
+          <Link href="/parent/students?next=subscribe" className="btn btn-primary mt-4">أضف طالباً</Link>
         </div>
       </>
     );
@@ -27,7 +27,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageTitle title="اشتراك جديد" sub="اختر الباقة والطالب والمسار، وبعدها الدفع عبر سلة." />
+      <PageTitle title="اشتراك جديد" sub="جميع الحصص فردية لابنك. اختر الباقة والطالب والمسار، ثم ادفع عبر سلة." />
       <SubscribeForm
         initialPlan={plan}
         students={students.map(({ id, full_name, grade }) => ({ id, full_name, grade }))}

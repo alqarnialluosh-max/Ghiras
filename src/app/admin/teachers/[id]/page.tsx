@@ -61,7 +61,7 @@ export default async function TeacherDetail({ params }: { params: Promise<{ id: 
             <table className="table">
               <thead><tr><th>الشهر</th><th>الحصص</th><th>المستحق</th><th></th></tr></thead>
               <tbody>
-                {months.length === 0 && <tr><td colSpan={4} className="text-muted">ما فيه حصص محتسبة.</td></tr>}
+                {months.length === 0 && <tr><td colSpan={4} className="text-muted">لا توجد حصص محتسبة.</td></tr>}
                 {months.map((m) => (
                   <tr key={m.month}>
                     <td dir="ltr" className="text-right">{m.month}</td><td>{m.sessions}</td><td>{sar(Number(m.sessions) * rate)}</td>
@@ -80,7 +80,7 @@ export default async function TeacherDetail({ params }: { params: Promise<{ id: 
             <table className="table">
               <thead><tr><th>الموعد</th><th>الطالب</th><th>المادة</th><th>الحالة</th></tr></thead>
               <tbody>
-                {sessions.length === 0 && <tr><td colSpan={4} className="text-muted">ما فيه حصص.</td></tr>}
+                {sessions.length === 0 && <tr><td colSpan={4} className="text-muted">لا توجد حصص.</td></tr>}
                 {sessions.map((b) => (
                   <tr key={b.id}>
                     <td><Link href={`/admin/bookings/${b.id}`} className="text-lav-700 underline">{dateLabel(b.starts_at)}</Link><p className="text-xs text-muted">{timeLabel(b.starts_at)}</p></td>

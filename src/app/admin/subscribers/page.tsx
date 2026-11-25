@@ -60,7 +60,7 @@ export default async function SubscribersPage({ searchParams }: { searchParams: 
         {plans.map((p) => <Link key={p.code} href={link({ plan: p.code })} className={pill(plan === p.code)}>{p.name_ar}</Link>)}
       </div>
 
-      {rows.length === 0 ? <Empty title="ما فيه مشتركين بهذا الفلتر" /> : (
+      {rows.length === 0 ? <Empty title="لا يوجد مشتركون بهذه التصفية" /> : (
         <div className="panel overflow-x-auto">
           <table className="table">
             <thead><tr><th>ولي الأمر</th><th>الطالب</th><th>الباقة</th><th>الحصص</th><th>الحصة القادمة</th><th>ينتهي</th></tr></thead>
@@ -79,7 +79,7 @@ export default async function SubscribersPage({ searchParams }: { searchParams: 
                     <td>{r.student_name}<p className="text-xs text-muted">{GRADES[r.grade]}</p></td>
                     <td>{r.plan_name}<p className="text-xs text-muted">{r.subject ? SUBJECTS[r.subject] : "كل المواد"} · {TRACKS[r.track].short} · <span dir="ltr">{r.reference}</span></p></td>
                     <td><span className="font-semibold">{remaining}</span> <span className="text-muted">/ {r.sessions_total} متبقية</span></td>
-                    <td>{r.next_session ? shortDate(r.next_session) : <span className="text-muted">ما حجز</span>}</td>
+                    <td>{r.next_session ? shortDate(r.next_session) : <span className="text-muted">لم يحجز</span>}</td>
                     <td className={view !== "expired" && daysLeft <= 5 ? "font-semibold text-warn" : ""}>
                       {shortDate(r.ends_at)}{view !== "expired" && <p className="text-xs text-muted">بعد {daysLeft} يوم</p>}
                     </td>

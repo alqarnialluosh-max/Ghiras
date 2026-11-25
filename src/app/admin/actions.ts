@@ -168,7 +168,7 @@ export async function resetPasswordAction(_: ActionState, fd: FormData): Promise
   if (!row) return fail("لا يمكن إعادة تعيين كلمة مرور هذا الحساب من هنا.");
   await revokeAllSessions(id.data);
   await audit("user.password_reset", "user", id.data, admin.id);
-  return { ok: `كلمة المرور المؤقتة: ${temp} — أرسلها للمستخدم بشكل خاص، ولن تظهر مرة ثانية.` };
+  return { ok: `كلمة المرور المؤقتة: ${temp} — أرسلها للمستخدم بشكل خاص، ولن تظهر مرة أخرى.` };
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +243,7 @@ export async function createClientAction(_: ActionState, fd: FormData): Promise<
     return {
       ok: `تم إنشاء الحساب ✓ — البريد: ${d.email} · كلمة المرور المؤقتة: ${temp}` +
         (result.reference ? ` · الاشتراك ${result.reference} مفعّل الآن` : "") +
-        ` — أرسلها للعميل بشكل خاص (لن تظهر مرة ثانية)، ويقدر يغيرها من «حسابي».`,
+        ` — أرسلها للعميل بشكل خاص (لن تظهر مرة أخرى)، ويمكنه تغييرها من «حسابي».`,
     };
   } catch (e) {
     if (isUniqueViolation(e)) return fail("هذا البريد مسجل مسبقاً. ابحث عنه في صفحة أولياء الأمور.", { email: "مسجل مسبقاً" }, values);
@@ -305,7 +305,7 @@ const entrySchema = z.object({
   kind: z.enum(["income", "expense"], { message: "اختر النوع" }),
   category: z.string().trim().min(2, "اختر التصنيف").max(60),
   custom_category: z.string().trim().max(60).optional().default(""),
-  amount_sar: z.coerce.number({ message: "اكتب المبلغ" }).positive("المبلغ لازم يكون أكبر من صفر").max(10_000_000),
+  amount_sar: z.coerce.number({ message: "اكتب المبلغ" }).positive("يجب أن يكون المبلغ أكبر من صفر").max(10_000_000),
   entry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "اختر التاريخ"),
   description: z.string().trim().min(2, "اكتب وصفاً مختصراً").max(500),
   salla_order_id: z.string().trim().max(60).optional().default(""),

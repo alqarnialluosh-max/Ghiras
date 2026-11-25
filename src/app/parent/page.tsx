@@ -21,16 +21,16 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <PageTitle title={`أهلاً ${first}`} sub={welcome ? "حسابك جاهز. الخطوة الجاية: أضف ابنك أو بنتك." : "هذي خلاصة حصص أبنائك."}
+      <PageTitle title={`أهلاً ${first}`} sub={welcome ? "حسابك جاهز. الخطوة التالية: أضف ابنك أو ابنتك." : "هذه خلاصة حصص أبنائك."}
         action={active.length > 0 && <Link href="/parent/book" className="btn btn-primary">احجز حصة</Link>} />
 
       {students.length === 0 && (
         <div className="panel mb-8 flex flex-col items-start gap-4 bg-lav-100/50 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-medium">ما أضفت أي طالب بعد</p>
-            <p className="text-muted">أضف اسم الطالب وصفه الدراسي عشان تقدر تشترك وتحجز.</p>
+            <p className="font-medium">لم تُضف أي طالب بعد</p>
+            <p className="text-muted">أضف اسم الطالب وصفه الدراسي لتتمكن من الاشتراك والحجز.</p>
           </div>
-          <Link href="/parent/students" className="btn btn-primary">أضف طالب</Link>
+          <Link href="/parent/students" className="btn btn-primary">أضف طالباً</Link>
         </div>
       )}
 
@@ -44,7 +44,7 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
                 <div>
                   <p className="font-medium">{s.plan_name} — {s.student_name}</p>
                   <p className="text-[.95rem] text-muted">
-                    رقم الطلب <span dir="ltr" className="font-medium text-ink">{s.reference}</span> · يتفعل تلقائياً بعد الدفع بنفس بريدك أو جوالك
+                    رقم الطلب <span dir="ltr" className="font-medium text-ink">{s.reference}</span> · يُفعَّل تلقائياً بعد الدفع ببريدك أو جوالك المسجل
                   </p>
                 </div>
                 {url && <a href={url} className="btn btn-ghost btn-sm" rel="noopener">أكمل الدفع في سلة</a>}
@@ -57,7 +57,7 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
       <section className="mb-10" aria-labelledby="active-h">
         <h2 id="active-h" className="mb-3 text-xl">الاشتراكات الفعّالة</h2>
         {active.length === 0 ? (
-          <Empty title="ما عندك اشتراك فعّال">
+          <Empty title="ليس لديك اشتراك فعّال">
             <Link href="/parent/subscribe" className="btn btn-primary btn-sm mt-3">اختر باقة</Link>
           </Empty>
         ) : (
@@ -92,7 +92,7 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
           <Link href="/parent/sessions" className="text-[.95rem] text-lav-700 underline">كل الحصص</Link>
         </div>
         {upcoming.length === 0 ? (
-          <Empty title="ما فيه حصص قادمة">{active.length > 0 && "احجز أول حصة من زر «احجز حصة»."}</Empty>
+          <Empty title="لا توجد حصص قادمة">{active.length > 0 && "احجز أول حصة من زر «احجز حصة»."}</Empty>
         ) : (
           <div className="space-y-3">{upcoming.map((b) => <SessionCard key={b.id} b={b} viewer="parent" />)}</div>
         )}

@@ -24,7 +24,7 @@ export async function loginAction(_: ActionState, fd: FormData): Promise<ActionS
 
   const ip = await ipHash();
   if (!(await rateLimit(`login:ip:${ip}`, 30, 600)) || !(await rateLimit(`login:email:${email}`, 10, 900))) {
-    return fail("محاولات كثيرة. انتظر ربع ساعة ثم حاول مرة ثانية.", undefined, values);
+    return fail("محاولات كثيرة. انتظر ربع ساعة ثم حاول مرة أخرى.", undefined, values);
   }
 
   const user = await one<{ id: string; role: Role; password_hash: string; failed_logins: number; locked_until: Date | null; status: string }>(

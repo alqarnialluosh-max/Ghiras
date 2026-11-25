@@ -27,9 +27,9 @@ export default async function AdminPayments({ searchParams }: { searchParams: Pr
   ]);
   return (
     <>
-      <PageTitle title="مدفوعات سلة" sub="كل إشعار دفع يصل من سلة يُحفظ هنا. اللي ما تطابق تلقائياً اربطه بطلب الاشتراك الصحيح."
+      <PageTitle title="مدفوعات سلة" sub="يُحفظ هنا كل إشعار دفع يصل من سلة. وما لم يُطابَق تلقائياً اربطه بطلب الاشتراك الصحيح."
         action={<a href={all ? "/admin/payments" : "/admin/payments?all=1"} className="btn btn-ghost btn-sm">{all ? "المهم فقط" : "عرض الكل"}</a>} />
-      {events.length === 0 ? <Empty title="ما وصل أي إشعار من سلة بعد">تأكد من إعداد الـWebhook في سلة (الشرح في دليل التشغيل).</Empty> : (
+      {events.length === 0 ? <Empty title="لم يصل أي إشعار من سلة بعد">تأكد من إعداد الـWebhook في سلة (الشرح في دليل التشغيل).</Empty> : (
         <div className="space-y-3">
           {events.map((e) => (
             <article key={e.id} className="panel p-5">

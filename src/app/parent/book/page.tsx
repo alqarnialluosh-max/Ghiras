@@ -39,7 +39,7 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
     return (
       <>
         <PageTitle title="احجز حصة" />
-        <Empty title="تحتاج اشتراك فعّال قبل الحجز">
+        <Empty title="تحتاج إلى اشتراك فعّال قبل الحجز">
           <Link href="/parent/subscribe" className="btn btn-primary btn-sm mt-3">اختر باقة</Link>
         </Empty>
       </>
@@ -69,7 +69,7 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <PageTitle title="احجز حصة" sub="اختر الوقت أولاً، وبعدها المعلمة المتاحة فيه." />
+      <PageTitle title="احجز حصة" sub="اختر الوقت أولاً، ثم المعلمة المتاحة فيه." />
       <div className="space-y-10">
         <section>
           <StepTitle n={1}>الاشتراك</StepTitle>
@@ -83,7 +83,7 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
           {sub && (
             <p className="mt-3 text-[.95rem] text-muted">
               {GRADES[sub.grade]} · {TRACKS[sub.track].name} · متبقي <strong className="text-ink">{remaining}</strong> من {sub.sessions_total}
-              {sub.weekly_limit ? ` · حتى ${sub.weekly_limit} حصص بالأسبوع` : ""}
+              {sub.weekly_limit ? ` · حتى ${sub.weekly_limit} حصص أسبوعياً` : ""}
             </p>
           )}
         </section>
@@ -100,7 +100,7 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
                 <Choice key={s} href={link({ subject: s, date: undefined, minute: undefined })} active={subject === s}>{SUBJECTS[s]}</Choice>
               ))}
             </div>
-            {noTeachersAtAll && <p className="alert alert-info mt-4">ما فيه معلمة متاحة لهذه المادة وهذا الصف حالياً. جرّب مادة ثانية أو تواصل معنا.</p>}
+            {noTeachersAtAll && <p className="alert alert-info mt-4">لا توجد حالياً معلمة متاحة لهذه المادة وهذا الصف. جرّب مادة أخرى أو تواصل معنا.</p>}
           </section>
         )}
 
@@ -129,7 +129,7 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
           <section>
             <StepTitle n={4}>الوقت — {keyLabel(date)}</StepTitle>
             {slots.size === 0 ? (
-              <p className="panel p-5 text-muted">ما فيه أوقات متاحة في هذا اليوم. جرّب يوماً ثانياً.</p>
+              <p className="panel p-5 text-muted">لا توجد أوقات متاحة في هذا اليوم. جرّب يوماً آخر.</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {[...slots.keys()].map((m) => (

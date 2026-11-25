@@ -17,7 +17,7 @@ export default async function TeacherStatsPage() {
   return (
     <>
       <PageTitle title="حصص ومستحقات المعلمات"
-        sub="المحتسب = الحصص المكتملة + الحصص اللي غاب فيها الطالب. غياب المعلمة ما يُحتسب."
+        sub="المحتسب: الحصص المكتملة والحصص التي تغيّب فيها الطالب. ولا يُحتسب غياب المعلمة."
         action={<Link href="/admin/payouts" className="btn btn-ghost">صرف الأجور</Link>} />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -27,7 +27,7 @@ export default async function TeacherStatsPage() {
         <div className="panel p-5"><p className="text-sm text-muted">المتبقي لهم</p><p className={`font-display text-3xl ${totals.balance > 0 ? "text-bad" : "text-ok"}`}>{sar(totals.balance)}</p></div>
       </div>
 
-      {rows.length === 0 ? <Empty title="ما فيه معلمات بعد" /> : (
+      {rows.length === 0 ? <Empty title="لا توجد معلمات بعد" /> : (
         <div className="panel overflow-x-auto">
           <table className="table">
             <thead>

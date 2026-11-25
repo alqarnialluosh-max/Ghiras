@@ -17,7 +17,7 @@ export function TeacherForm() {
       <Field name="password" label="كلمة المرور" type="password" autoComplete="new-password" required state={state} hint="10 أحرف على الأقل، حروف وأرقام." />
 
       <fieldset className="field">
-        <legend className="mb-2 font-medium">المواد اللي تدرّسينها</legend>
+        <legend className="mb-2 font-medium">المواد التي تدرّسينها</legend>
         <div className="flex flex-wrap gap-3">
           {Object.entries(SUBJECTS).map(([k, label]) => (
             <label key={k} className="flex cursor-pointer items-center gap-2 rounded-full border-[1.5px] border-line px-4 py-2 has-[:checked]:border-lav-400 has-[:checked]:bg-lav-100">
@@ -63,12 +63,12 @@ export function TeacherForm() {
           className="input file:ml-3 file:rounded-full file:border-0 file:bg-lav-100 file:px-4 file:py-1.5 file:text-lav-700"
           aria-invalid={state.fieldErrors?.cv ? true : undefined} />
         {state.fieldErrors?.cv ? <p className="text-sm text-bad">{state.fieldErrors.cv}</p>
-          : <p className="hint">PDF أو Word أو صورة، حتى 5 ميجابايت. تطلع عليها الإدارة فقط.{state.error ? " (أعيدي إرفاق الملف)" : ""}</p>}
+          : <p className="hint">PDF أو Word أو صورة، حتى 5 ميجابايت. تطّلع عليها الإدارة فقط.{state.error ? " (أعيدي إرفاق الملف)" : ""}</p>}
       </div>
 
       <Field name="teams_link" label="رابط اجتماع Teams الدائم (اختياري الآن)" dir="ltr" state={state}
         placeholder="https://teams.microsoft.com/l/meetup-join/..."
-        hint="هذا الرابط يظهر للطالب في كل حصصك. تقدرين تضيفينه لاحقاً من صفحتك." />
+        hint="يظهر هذا الرابط للطالب في جميع حصصك، ويمكنك إضافته لاحقاً من صفحتك." />
 
       <div>
         <label className="flex items-start gap-3 text-[.95rem]">
@@ -77,7 +77,7 @@ export function TeacherForm() {
         </label>
         <FieldErrorText state={state} name="consent" />
       </div>
-      <SubmitButton className="btn btn-sky w-full" pending="جاري الإرسال...">أرسلي طلب الانضمام</SubmitButton>
+      <SubmitButton className="btn btn-sky w-full" pending="جارٍ الإرسال...">أرسلي طلب الانضمام</SubmitButton>
     </form>
   );
 }

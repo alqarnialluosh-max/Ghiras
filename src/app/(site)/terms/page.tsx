@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { site } from "@/config/site";
 import { localPhone } from "@/components/ContactLinks";
-import { env } from "@/lib/env";
 import { MIN_LEAD_HOURS, SESSION_MINUTES } from "@/lib/domain";
 import { getPlans, planPrice, type Plan } from "@/lib/plans";
 
@@ -13,15 +12,12 @@ const RULES = {
   rescheduleNoticeHours: 12,   // family must contact admin at least this long before the session
   lateMinutes: 15,             // after this, the session counts as an absence
   teacherCancelNoticeHours: 24,
-  payoutDay: 10,               // teacher pay is sent by this day of the following month
-  teacherRepeatAbsences: 2,    // absences per month that trigger a review / suspension
 };
 
 export default async function Terms() {
   const plans = await getPlans(true).catch(() => [] as Plan[]);
   const p = (code: string) => plans.find((x) => x.code === code);
   const all = p("ALL_SUBJECTS"), one = p("SINGLE_SUBJECT"), single = p("SINGLE_SESSION");
-  const rate = env.teacherRateSar;
   const contact = `${localPhone(site.contact.phones[0])} أو ${site.contact.email}`;
 
   return (
@@ -46,7 +42,7 @@ export default async function Terms() {
       <h2 id="general">1. أحكام عامة</h2>
       <ul>
         <li>غِراس منصة دروس خصوصية أونلاين للصفوف من الأول الابتدائي إلى الثالث المتوسط في الرياضيات ولغتي والعلوم، بإشراف تعليمي من {site.supervisor.name}.</li>
-        <li>الحصص فردية، ومدة الحصة {SESSION_MINUTES} دقيقة، وتُقدَّم عبر Microsoft Teams.</li>
+        <li>جميع الحصص فردية: معلمة واحدة مع طالب واحد فقط، ومدة الحصة {SESSION_MINUTES} دقيقة، وتُقدَّم عبر Microsoft Teams.</li>
         <li>إنشاء الحساب والاشتراك يكون من ولي الأمر (18 سنة فأكثر)، وهو المسؤول عن صحة بياناته وبيانات أبنائه.</li>
         <li>الحساب شخصي، ولا يجوز مشاركة بيانات الدخول مع غيرك.</li>
         <li>استخدامك للمنصة يعني موافقتك على هذه الشروط وعلى <Link href="/privacy" className="text-lav-700 underline">سياسة الخصوصية</Link>.</li>
@@ -76,7 +72,7 @@ export default async function Terms() {
       <h2 id="payment">4. الدفع والاسترجاع</h2>
       <ul>
         <li>يتم الدفع عبر <a href={site.sallaStore} target="_blank" rel="noopener noreferrer" className="text-lav-700 underline">متجر غِراس على منصة سلة</a> وبطرق الدفع المتاحة فيه. غِراس لا تستقبل ولا تحفظ بيانات البطاقات.</li>
-        <li>لتفعيل الاشتراك تلقائياً، استخدم عند الدفع نفس البريد أو رقم الجوال المسجّل في حسابك بغِراس. وإذا لم يتفعل خلال يوم عمل، تواصل معنا.</li>
+        <li>لتفعيل الاشتراك تلقائياً، استخدم عند الدفع البريد أو رقم الجوال نفسه المسجّل في حسابك في غِراس. وإذا لم يُفعَّل خلال يوم عمل، تواصل معنا.</li>
         <li>يحق طلب استرجاع كامل المبلغ قبل استخدام أي حصة من الاشتراك وخلال 7 أيام من الدفع، ولا تُحتسب الحصة المجانية ضمن «الاستخدام».</li>
         <li>بعد استخدام حصة أو أكثر، أو بعد مرور 7 أيام، لا يُسترد المبلغ، ويمكن للإدارة تقدير الحالات الاستثنائية.</li>
         <li>يتم الاسترجاع بنفس وسيلة الدفع عبر سلة، وحسب مدد المعالجة لدى بوابة الدفع.</li>
@@ -106,22 +102,19 @@ export default async function Terms() {
         <li>لا تظهر المعلمة لأولياء الأمور إلا بعد اعتمادها وإضافة رابط اجتماع Teams دائم وأوقات متاحة.</li>
       </ul>
 
-      <h3>الأجر والدفع</h3>
+      <h3>الأجر</h3>
       <ul>
-        <li>أجر الحصة <strong>{rate} ريال</strong> عن كل حصة مكتملة.</li>
-        <li>تُستحق الأجرة أيضاً إذا حضرت المعلمة في الموعد وغاب الطالب.</li>
-        <li>لا تُستحق الأجرة عن الحصص التي تغيب عنها المعلمة أو تتأخر عنها أكثر من {RULES.lateMinutes} دقيقة.</li>
-        <li>تُحسب المستحقات شهرياً، وتظهر للمعلمة أولاً بأول في صفحة «مستحقاتي»، وتُصرف قبل يوم {RULES.payoutDay} من الشهر التالي إلى الحساب البنكي المعتمد لدى الإدارة.</li>
-        <li>تعتمد الإدارة على تسجيل الحضور في المنصة لاحتساب الأجر. لذلك يجب على المعلمة تحديد الحضور بعد كل حصة.</li>
+        <li>يُحدَّد أجر الحصة وآلية احتسابه وصرفه بعد المقابلة، ويُبلَّغ للمعلمة عند قبولها، ويظهر لها داخل صفحتها في المنصة.</li>
+        <li>تُحسب المستحقات شهرياً بناءً على تسجيل الحضور في المنصة، لذلك يجب على المعلمة تحديد الحضور بعد كل حصة.</li>
       </ul>
 
       <h3>الالتزامات</h3>
       <ul>
         <li>الدخول للحصة في موعدها عبر رابط Teams المسجّل في المنصة، وأن يكون الرابط صالحاً ومحدّثاً.</li>
-        <li>كتابة تقرير مختصر لولي الأمر بعد كل حصة: ما تم شرحه، ومستوى الطالب، وما يحتاج مراجعة.</li>
+        <li>تحديد حضور الطالب في المنصة بعد كل حصة.</li>
         <li>الالتزام بالمسار المختار (تقوية، متابعة، تحضير اختبارات) وبالمنهج السعودي المعتمد.</li>
         <li>عند الاعتذار عن حصة محجوزة يجب إبلاغ الإدارة قبل موعدها بـ{RULES.teacherCancelNoticeHours} ساعة على الأقل لإعادة جدولتها.</li>
-        <li>تكرار الغياب أو التأخير ({RULES.teacherRepeatAbsences} مرات أو أكثر في الشهر) يستوجب المراجعة، وقد يؤدي لإيقاف الحساب.</li>
+        <li>تكرار الغياب أو التأخير يستوجب المراجعة، وقد يؤدي لإيقاف الحساب.</li>
       </ul>
 
       <h3>العملاء والسرية</h3>

@@ -13,10 +13,10 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const students = await studentsOf(user.id);
   return (
     <>
-      <PageTitle title="أبنائي" sub="أضف كل أبنائك في نفس الحساب، ولكل واحد اشتراكه وحصصه." />
+      <PageTitle title="أبنائي" sub="أضف جميع أبنائك في الحساب نفسه، ولكل منهم اشتراكه وحصصه." />
       <div className="grid gap-8 lg:grid-cols-[1fr_.85fr]">
         <section aria-label="قائمة الأبناء" className="space-y-4">
-          {students.length === 0 && <p className="panel p-6 text-muted">ما فيه أبناء مضافين بعد.</p>}
+          {students.length === 0 && <p className="panel p-6 text-muted">لم تُضف أي أبناء بعد.</p>}
           {students.map((s) => (
             <details key={s.id} className="panel group p-5">
               <summary className="flex cursor-pointer list-none items-center justify-between">

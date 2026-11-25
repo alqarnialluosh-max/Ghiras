@@ -50,7 +50,7 @@ export default async function OwnerHome() {
 
       {/* Money */}
       <section aria-labelledby="money" className="mb-10">
-        <h2 id="money" className="mb-3 text-xl">الفلوس</h2>
+        <h2 id="money" className="mb-3 text-xl">المالية</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Stat label="إيراد الشهر" value={sar(o.revenueMonth)}
             sub={growth == null ? `الشهر الماضي ${sar(o.revenueLastMonth)}` : `${growth >= 0 ? "▲" : "▼"} ${Math.abs(growth)}% عن الشهر الماضي`} />
@@ -112,7 +112,7 @@ export default async function OwnerHome() {
           <h2 id="act" className="text-xl">تفعيل المعلمات {pendingTeachers.length > 0 && <span className="chip chip-warn mr-2">{pendingTeachers.length} بانتظار</span>}</h2>
           <Link href="/admin/teachers" className="text-[.95rem] text-lav-700 underline">كل المعلمات ({o.teachersActive} معتمدة)</Link>
         </div>
-        {pendingTeachers.length === 0 ? <p className="panel p-5 text-muted">ما فيه طلبات انضمام جديدة.</p> : (
+        {pendingTeachers.length === 0 ? <p className="panel p-5 text-muted">لا توجد طلبات انضمام جديدة.</p> : (
           <div className="space-y-3">
             {pendingTeachers.map((t) => (
               <div key={t.user_id} className="panel flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -135,7 +135,7 @@ export default async function OwnerHome() {
 
       <section>
         <h2 className="mb-3 text-xl">حصص اليوم ({todays.length})</h2>
-        {todays.length === 0 ? <p className="panel p-5 text-muted">ما فيه حصص اليوم.</p>
+        {todays.length === 0 ? <p className="panel p-5 text-muted">لا توجد حصص اليوم.</p>
           : <div className="space-y-3">{todays.map((b) => <SessionCard key={b.id} b={b} viewer="admin" />)}</div>}
       </section>
     </>

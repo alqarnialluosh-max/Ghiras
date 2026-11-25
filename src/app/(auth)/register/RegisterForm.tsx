@@ -12,7 +12,7 @@ export function RegisterForm({ next }: { next?: string }) {
       <input type="hidden" name="next" value={next ?? ""} />
       <Field name="full_name" label="اسم ولي الأمر" autoComplete="name" required state={state} />
       <Field name="email" label="البريد الإلكتروني" type="email" autoComplete="email" dir="ltr" required state={state}
-        hint="استخدم نفس البريد عند الدفع في سلة حتى يتفعل اشتراكك تلقائياً." />
+        hint="استخدم البريد نفسه عند الدفع في سلة ليُفعَّل اشتراكك تلقائياً." />
       <Field name="phone" label="رقم الجوال" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="05XXXXXXXX" required state={state} />
       <Field name="password" label="كلمة المرور" type="password" autoComplete="new-password" required state={state}
         hint="10 أحرف على الأقل، حروف وأرقام." />
@@ -23,7 +23,7 @@ export function RegisterForm({ next }: { next?: string }) {
         </label>
         <FieldErrorText state={state} name="consent" />
       </div>
-      <SubmitButton pending="جاري إنشاء الحساب...">إنشاء الحساب</SubmitButton>
+      <SubmitButton pending="جارٍ إنشاء الحساب...">إنشاء الحساب</SubmitButton>
     </form>
   );
 }

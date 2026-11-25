@@ -11,7 +11,7 @@ export function LoginForm({ next }: { next?: string }) {
       <input type="hidden" name="next" value={next ?? ""} />
       <Field name="email" label="البريد الإلكتروني" type="email" autoComplete="email" dir="ltr" required state={state} />
       <Field name="password" label="كلمة المرور" type="password" autoComplete="current-password" required state={state} />
-      <SubmitButton pending="جاري الدخول...">دخول</SubmitButton>
+      <SubmitButton pending="جارٍ الدخول...">دخول</SubmitButton>
     </form>
   );
 }

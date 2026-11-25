@@ -12,7 +12,7 @@ export function ProfileForm({ p }: { p: TeacherProfile }) {
       <FormMessage state={state} />
       <Field name="teams_link" label="رابط اجتماع Teams الدائم" dir="ltr" state={state} defaultValue={p.teams_link ?? ""}
         placeholder="https://teams.microsoft.com/l/meetup-join/..."
-        hint="من Teams: التقويم ← اجتماع جديد ← انسخي رابط الانضمام. هذا الرابط يظهر للطلاب في كل حصصك." />
+        hint="من Teams: التقويم ← اجتماع جديد ← انسخي رابط الانضمام. يظهر هذا الرابط للطلاب في جميع حصصك." />
       <fieldset className="field">
         <legend className="mb-2 font-medium">المواد</legend>
         <div className="flex flex-wrap gap-3">
@@ -44,7 +44,7 @@ export function ProfileForm({ p }: { p: TeacherProfile }) {
         <input type="checkbox" name="accepting" defaultChecked={p.accepting} className="h-4 w-4 accent-lav-700" />
         أستقبل حجوزات جديدة
       </label>
-      <SubmitButton className="btn btn-primary" pending="جاري الحفظ...">احفظي الملف</SubmitButton>
+      <SubmitButton className="btn btn-primary" pending="جارٍ الحفظ...">احفظي الملف</SubmitButton>
     </form>
   );
 }

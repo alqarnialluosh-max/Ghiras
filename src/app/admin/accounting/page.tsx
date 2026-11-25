@@ -64,7 +64,7 @@ export default async function AccountingPage({ searchParams }: {
 
   return (
     <>
-      <PageTitle title="المحاسبة" sub={<>الإيرادات والمصروفات · {period.label}. إيرادات سلة وأجور المعلمات تنزل تلقائياً، والباقي تضيفه يدوياً.</>}
+      <PageTitle title="المحاسبة" sub={<>الإيرادات والمصروفات · {period.label}. تُسجَّل إيرادات سلة وأجور المعلمات تلقائياً، وتُضاف بقية القيود يدوياً.</>}
         action={<a href={`/admin/accounting/export?from=${period.from}&to=${period.to}`} className="btn btn-ghost">تصدير Excel (CSV)</a>} />
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -137,7 +137,7 @@ export default async function AccountingPage({ searchParams }: {
           <section className="panel p-6" aria-labelledby="fees">
             <h2 id="fees" className="mb-1 text-xl">ربط سلة</h2>
             <p className="mb-4 text-sm text-muted">
-              كل دفعة تأكدت من سلة تنزل إيراد تلقائياً. وإذا حطيت نسبة رسوم بوابة الدفع، تنحسب عليها رسوم تقديرية كمصروف.
+              تُسجَّل كل دفعة مؤكدة من سلة إيراداً تلقائياً. وإذا حددت نسبة رسوم بوابة الدفع، تُحتسب عليها رسوم تقديرية مصروفاً.
               {site.sallaStore && <> المتجر: <a href={site.sallaStore} target="_blank" rel="noopener noreferrer" className="text-lav-700 underline" dir="ltr">{site.sallaStore.replace("https://", "")}</a></>}
             </p>
             <ActionForm action={updateFeeSettingsAction} className="space-y-3">
@@ -147,7 +147,7 @@ export default async function AccountingPage({ searchParams }: {
                 <div className="field"><label htmlFor="fixed">رسوم ثابتة (ريال)</label>
                   <input id="fixed" name="salla_fee_fixed_sar" type="number" step="0.01" min={0} max={100} defaultValue={feeFixed} className="input" /></div>
               </div>
-              <p className="hint">انسخ النسبة من فاتورة سلة أو إعدادات «سلة باي».</p>
+              <p className="hint">انقل النسبة من فاتورة سلة أو من إعدادات «سلة باي».</p>
               <SubmitButton className="btn btn-ghost btn-sm">حفظ</SubmitButton>
             </ActionForm>
           </section>
@@ -188,7 +188,7 @@ export default async function AccountingPage({ searchParams }: {
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-sm text-muted">القيود ما تنحذف ولا تنعدل. إذا فيه خطأ، ألغِ القيد مع كتابة السبب وسجّل قيد صحيح.</p>
+        <p className="mt-3 text-sm text-muted">لا تُحذف القيود ولا تُعدَّل. وإذا وقع خطأ، فألغِ القيد مع ذكر السبب ثم سجّل قيداً صحيحاً.</p>
       </section>
     </>
   );

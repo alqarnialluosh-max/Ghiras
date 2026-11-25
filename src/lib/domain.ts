@@ -9,9 +9,9 @@ export type Subject = keyof typeof SUBJECTS;
 export const SUBJECT_KEYS = Object.keys(SUBJECTS) as Subject[];
 
 export const TRACKS = {
-  remedial: { name: "التقوية", short: "تقوية", desc: "نرجع للأساس ونسد الفجوات اللي تراكمت، خطوة بخطوة حتى يثق الطالب بنفسه." },
-  followup: { name: "المتابعة المستمرة", short: "متابعة", desc: "نمشي مع منهج المدرسة أسبوع بأسبوع: شرح الدروس، حل الواجبات، وتقرير لولي الأمر بعد كل حصة." },
-  exam_prep: { name: "تحضير الاختبارات النهائية", short: "اختبارات", desc: "مراجعة مركّزة ونماذج اختبارات وتدريب على إدارة الوقت قبل الفترة النهائية." },
+  remedial: { name: "التقوية", short: "تقوية", desc: "نعود إلى الأساسيات ونسد الفجوات المتراكمة خطوة بخطوة، حتى يستعيد الطالب ثقته بنفسه." },
+  followup: { name: "المتابعة المستمرة", short: "متابعة", desc: "نواكب منهج المدرسة أسبوعاً بأسبوع: شرح الدروس، وحل الواجبات، ومتابعة مستمرة لمستوى الطالب." },
+  exam_prep: { name: "تحضير الاختبارات النهائية", short: "اختبارات", desc: "مراجعة مركّزة، ونماذج اختبارات، وتدريب على إدارة الوقت قبل الاختبارات النهائية." },
 } as const;
 export type Track = keyof typeof TRACKS;
 export const TRACK_KEYS = Object.keys(TRACKS) as Track[];

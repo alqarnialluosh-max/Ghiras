@@ -21,7 +21,7 @@ export default async function AvailabilityPage() {
 
   return (
     <>
-      <PageTitle title="أوقاتي" sub="الأوقات هنا هي اللي تظهر لأولياء الأمور. الحصة ساعة، وتبدأ على رأس الساعة أو النصف." />
+      <PageTitle title="أوقاتي" sub="هذه الأوقات هي التي تظهر لأولياء الأمور. مدة الحصة ساعة، وتبدأ على رأس الساعة أو نصفها." />
       <div className="grid gap-8 lg:grid-cols-[1.2fr_.8fr]">
         <section className="panel p-6" aria-labelledby="week">
           <h2 id="week" className="mb-4 text-xl">الجدول الأسبوعي</h2>
@@ -41,7 +41,7 @@ export default async function AvailabilityPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-sm text-muted">إيقاف فترة ما يلغي الحصص المحجوزة فيها؛ يمنع الحجوزات الجديدة فقط.</p>
+          <p className="mt-4 text-sm text-muted">إيقاف الفترة لا يلغي الحصص المحجوزة فيها، وإنما يمنع الحجوزات الجديدة فقط.</p>
         </section>
         <div className="space-y-8">
           <section className="panel p-6" aria-labelledby="add"><h2 id="add" className="mb-4 text-xl">إضافة فترة</h2><AddRuleForm /></section>

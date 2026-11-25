@@ -13,10 +13,10 @@ export default async function TeacherJoinPage() {
     <>
       <h1 className="text-3xl">انضمي لفريق معلمات غِراس</h1>
       <p className="mb-8 mt-2 text-muted">
-        تحددين أوقاتك، وتستلمين أجرك عن كل حصة تقدمينها. كل طلب تراجعه {site.supervisor.name}، وبعد الموافقة تفتح لك صفحتك وتبدأ الحجوزات.
+        تحددين أوقاتك بنفسك، وتحصلين على أجرك عن كل حصة تقدمينها. تراجع {site.supervisor.name} كل طلب، وبعد الموافقة تُفعَّل صفحتك وتبدأ الحجوزات.
       </p>
       <TeacherForm />
-      <p className="mt-8 text-[.95rem] text-muted">قدّمتِ من قبل؟ <Link href="/login" className="font-medium text-lav-700 underline">سجّلي الدخول</Link></p>
+      <p className="mt-8 text-[.95rem] text-muted">هل قدّمتِ من قبل؟ <Link href="/login" className="font-medium text-lav-700 underline">سجّلي الدخول</Link></p>
     </>
   );
 }

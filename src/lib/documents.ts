@@ -26,7 +26,7 @@ export async function checkCv(file: FormDataEntryValue | null): Promise<CvCheck>
   if (file.size > CV_MAX_BYTES) return { ok: false, error: "حجم الملف أكبر من 5 ميجابايت" };
   const buf = Buffer.from(await file.arrayBuffer());
   const type = sniff(buf);
-  if (!type) return { ok: false, error: "الملف لازم يكون PDF أو Word (docx) أو صورة JPG/PNG" };
+  if (!type) return { ok: false, error: "يجب أن يكون الملف بصيغة PDF أو Word (docx) أو صورة JPG/PNG" };
   const base = (file.name || "cv").replace(/\.[^.]+$/, "").replace(/[^\p{L}\p{N} _-]/gu, "").trim().slice(0, 80) || "cv";
   return { ok: true, buf, mime: type.mime, filename: `${base}.${type.ext}` };
 }

@@ -43,7 +43,7 @@ export function AddRuleForm() {
           <FieldErrorText state={state} name="end" />
         </div>
       </div>
-      <SubmitButton className="btn btn-primary" pending="جاري الإضافة...">أضيفي الفترة</SubmitButton>
+      <SubmitButton className="btn btn-primary" pending="جارٍ الإضافة...">أضيفي الفترة</SubmitButton>
     </form>
   );
 }
@@ -59,7 +59,7 @@ export function TimeOffForm() {
           <FieldErrorText state={state} name="to" /></div>
       </div>
       <div className="field"><label htmlFor="reason">السبب (اختياري)</label><input id="reason" name="reason" className="input" maxLength={200} /></div>
-      <SubmitButton className="btn btn-ghost" pending="جاري الحفظ...">سجّلي الإجازة</SubmitButton>
+      <SubmitButton className="btn btn-ghost" pending="جارٍ الحفظ...">سجّلي الإجازة</SubmitButton>
     </form>
   );
 }
