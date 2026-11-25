@@ -43,17 +43,8 @@ export function safeEqual(a: string, b: string): boolean {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
-/** Saudi mobile → 9665XXXXXXXX. Returns null if invalid. */
-export function normalizeSaudiPhone(input: string | null | undefined): string | null {
-  if (!input) return null;
-  let d = input
-    .replace(/[٠-٩]/g, (c) => String("٠١٢٣٤٥٦٧٨٩".indexOf(c)))
-    .replace(/[^0-9]/g, "");
-  if (d.startsWith("00")) d = d.slice(2);
-  if (d.startsWith("966")) d = d.slice(3);
-  if (d.startsWith("0")) d = d.slice(1);
-  return /^5\d{8}$/.test(d) ? `966${d}` : null;
-}
+export { normalizeSaudiPhoneClientSafe as normalizeSaudiPhone } from "./phone";
+import { normalizeSaudiPhoneClientSafe as normalizeSaudiPhone } from "./phone";
 
 export function phoneHash(input: string | null | undefined): string | null {
   const n = normalizeSaudiPhone(input);
