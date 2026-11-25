@@ -7,7 +7,7 @@ export function NavLinks({ items, className = "" }: { items: { href: string; lab
   return (
     <nav aria-label="أقسام اللوحة" className={`items-center gap-1 ${className}`}>
       {items.map((i) => {
-        const active = path === i.href || (i.href.split("/").length > 2 && path.startsWith(i.href));
+        const active = path === i.href || (i.href.split("/").length > 2 && path.startsWith(i.href + "/") && !items.some((o) => o.href !== i.href && o.href.startsWith(i.href) && path.startsWith(o.href)));
         return (
           <Link key={i.href} href={i.href} aria-current={active ? "page" : undefined}
             className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-[.93rem] transition-colors ${

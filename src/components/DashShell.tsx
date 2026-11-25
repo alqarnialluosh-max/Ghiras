@@ -4,7 +4,7 @@ import type { SessionUser } from "@/lib/auth";
 import { Logo } from "./Logo";
 import { NavLinks } from "./NavLinks";
 
-const ROLE_LABEL = { parent: "ولي أمر", teacher: "معلمة", admin: "الإدارة" } as const;
+const ROLE_LABEL = { parent: "ولي أمر", teacher: "معلمة", admin: "المالك" } as const;
 
 export function DashShell({ user, nav, children }: {
   user: SessionUser; nav: { href: string; label: string }[]; children: React.ReactNode;
@@ -15,7 +15,7 @@ export function DashShell({ user, nav, children }: {
         <div className="wrap flex h-16 items-center justify-between gap-4">
           <div className="flex items-center gap-8">
             <Logo href="/" />
-            <NavLinks items={nav} className="hidden md:flex" />
+            {nav.length <= 6 && <NavLinks items={nav} className="hidden md:flex" />}
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden text-left leading-tight sm:block">
@@ -28,7 +28,7 @@ export function DashShell({ user, nav, children }: {
             </form>
           </div>
         </div>
-        <div className="wrap overflow-x-auto pb-2 md:hidden">
+        <div className={`wrap overflow-x-auto pb-2 ${nav.length <= 6 ? "md:hidden" : "border-t border-line pt-2"}`}>
           <NavLinks items={nav} className="flex" />
         </div>
       </header>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageTitle, Empty } from "@/components/DashShell";
 import { GRADES, SUBJECTS } from "@/lib/domain";
 import { allTeachers } from "@/lib/teachers";
@@ -17,7 +18,7 @@ export default async function AdminTeachers() {
             <details key={t.user_id} className="panel p-5" open={t.status === "pending"}>
               <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
                 <span>
-                  <span className="font-semibold">{t.full_name}</span>
+                  <Link href={`/admin/teachers/${t.user_id}`} className="font-semibold text-lav-700 underline">{t.full_name}</Link>
                   <span className="mr-2 text-[.95rem] text-muted">· {t.subjects.map((s) => SUBJECTS[s]).join("، ")}</span>
                 </span>
                 <span className={`chip ${t.status === "active" ? "chip-ok" : t.status === "pending" ? "chip-warn" : "chip-bad"}`}>

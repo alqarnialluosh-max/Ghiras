@@ -4,13 +4,16 @@ import { requireRole } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 const NAV = [
-  { href: "/admin", label: "نظرة عامة" },
+  { href: "/admin", label: "لوحة المالك" },
+  { href: "/admin/subscribers", label: "المشتركين" },
   { href: "/admin/subscriptions", label: "الاشتراكات" },
   { href: "/admin/payments", label: "مدفوعات سلة" },
   { href: "/admin/bookings", label: "الحصص" },
-  { href: "/admin/teachers", label: "المعلمات" },
+  { href: "/admin/teachers", label: "تفعيل المعلمات" },
+  { href: "/admin/teachers/stats", label: "حصص ومستحقات المعلمات" },
   { href: "/admin/parents", label: "أولياء الأمور" },
-  { href: "/admin/payouts", label: "أجور المعلمات" },
+  { href: "/admin/clients/new", label: "إنشاء حساب عميل" },
+  { href: "/admin/payouts", label: "صرف الأجور" },
   { href: "/admin/plans", label: "الباقات" },
   { href: "/admin/audit", label: "السجل" },
 ];
