@@ -151,7 +151,16 @@ export default async function Home() {
               <br />
               ونرعاه كل أسبوع.
             </h1>
-            <p className="mt-6 max-w-[34rem] text-lg text-muted md:text-xl">
+            <p className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-lg font-medium text-lav-700 md:text-xl">
+              {site.slogan.map((s, i) => (
+                <span key={s} aria-hidden="true" className="flex items-center gap-3">
+                  {i > 0 && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-sky-300" />}
+                  {i > 0 ? s.replace(/^و/, "") : s}
+                </span>
+              ))}
+              <span className="sr-only">{site.slogan.join("، ")}</span>
+            </p>
+            <p className="mt-5 max-w-[34rem] text-lg text-muted md:text-xl">
               حصص فردية خاصة بابنك أو ابنتك: معلمة واحدة لطالب واحد، أونلاين على Teams في الرياضيات ولغتي والعلوم، للصفوف من الأول الابتدائي إلى الثالث المتوسط. أنتم تختارون الوقت والمعلمة.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">

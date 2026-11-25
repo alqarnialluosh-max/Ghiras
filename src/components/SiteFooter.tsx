@@ -9,6 +9,7 @@ export function SiteFooter() {
       <div className="wrap grid gap-10 py-14 md:grid-cols-[1.3fr_1fr_1fr_1fr]">
         <div className="max-w-sm space-y-3">
           <Logo height={56} />
+          <p className="font-medium text-lav-700">{site.slogan.join("، ")}</p>
           <p className="text-muted">{site.tagline}، بإشراف {site.supervisor.name}.</p>
         </div>
         <div>
