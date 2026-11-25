@@ -211,7 +211,7 @@ async def main():
 
         C_EMAIL = f"client{R}@test.sa"
         await a.goto(f"{BASE}/admin/clients/new")
-        await a.fill("#f-full_name", "أم فيصل"); await a.fill("#f-email", C_EMAIL); await a.fill("#f-phone", "0533334444")
+        await a.fill("#f-full_name", f"أم فيصل {R}"); await a.fill("#f-email", C_EMAIL); await a.fill("#f-phone", "0533334444")
         await a.fill("#f-student_name", "فيصل"); await a.select_option("#grade", "7")
         await a.select_option("#plan", "SINGLE_SUBJECT")
         await a.select_option("#subject", "math")
@@ -231,13 +231,76 @@ async def main():
         step("client logs in with temp password and sees active subscription")
 
         await a.goto(f"{BASE}/admin/subscribers")
-        await expect(a.get_by_text("أم فيصل")).to_be_visible()
+        await expect(a.get_by_text(f"أم فيصل {R}")).to_be_visible()
         await a.screenshot(path="/tmp/s_owner_subs.png", full_page=True)
         step("subscribers page lists the new client")
 
         audit = sql("SELECT count(*) FROM audit_log WHERE action IN ('admin.create_client','payout.record')").stdout.strip()
         assert int(audit) >= 2
         step("owner actions written to the audit log")
+
+
+        # ================= ACCOUNTING =================
+        inc = sql(f"SELECT count(*) FROM ledger_entries l JOIN subscriptions s ON s.id::text = l.source_id WHERE l.source='subscription' AND s.salla_order_id='{98765000 + R}'").stdout.strip()
+        assert inc == "1", inc
+        exp = sql(f"SELECT count(*) FROM ledger_entries WHERE source='teacher_payout' AND description LIKE '%نورة العتيبي%'").stdout.strip()
+        assert int(exp) >= 1
+        step("Salla payment auto-posted as income; teacher payout auto-posted as expense")
+
+        await a.goto(f"{BASE}/admin/accounting")
+        fees = a.locator("section", has_text="ربط سلة")
+        await fees.locator("#pct").fill("2.5")
+        await fees.locator("button:has-text('حفظ')").click()
+        await expect(fees.get_by_text("تم الحفظ")).to_be_visible()
+
+        await a.goto(f"{BASE}/admin/clients/new")
+        await a.fill("#f-full_name", "عميل سلة"); await a.fill("#f-email", f"feecheck{R}@test.sa"); await a.fill("#f-phone", "0544445555")
+        await a.fill("#f-student_name", "ريم"); await a.select_option("#grade", "3")
+        await a.select_option("#plan", "ALL_SUBJECTS")
+        await a.fill("#f-salla_order_id", f"FEE{R}")
+        await a.click("button:has-text('إنشاء الحساب')")
+        await expect(a.get_by_role("status")).to_contain_text("مفعّل")
+        fee = sql(f"SELECT amount_sar FROM ledger_entries WHERE source='salla_fee' AND salla_order_id='FEE{R}'").stdout.strip()
+        assert abs(float(fee) - 14.98) < 0.01, fee
+        step("Salla fee 2.5% auto-posted as expense (599 → 14.98)")
+
+        await a.goto(f"{BASE}/admin/accounting")
+        form = a.locator("section", has_text="قيد جديد")
+        await form.locator("select#category").select_option("استضافة وسيرفرات (Railway)")
+        await form.locator("#f-amount_sar").fill("20")
+        await form.locator("#f-description").fill(f"اشتراك Railway {R}")
+        await form.locator("button[type=submit]").click()
+        await expect(form.get_by_role("status")).to_contain_text("تم تسجيل المصروف")
+        await form.locator("select#category").select_option("__custom")
+        await form.locator("#f-custom_category").fill("ضيافة")
+        await form.locator("#f-amount_sar").fill("15")
+        await form.locator("#f-description").fill(f"قهوة اجتماع {R}")
+        await form.locator("button[type=submit]").click()
+        await expect(form.get_by_role("status")).to_contain_text("ضيافة")
+        step("manual expenses added (preset + custom category)")
+
+        await a.goto(f"{BASE}/admin/accounting")
+        row = a.locator("tr", has_text=f"قهوة اجتماع {R}")
+        await row.locator("summary:has-text('إلغاء')").click()
+        await row.locator("input[name=reason]").fill("مسجل بالغلط")
+        await row.locator("button:has-text('تأكيد الإلغاء')").click()
+        await expect(row).to_have_count(0)
+        st = sql(f"SELECT voided_at IS NOT NULL, void_reason FROM ledger_entries WHERE description = 'قهوة اجتماع {R}'").stdout.strip()
+        assert st.startswith("t|مسجل بالغلط"), st
+        r = sql(f"DELETE FROM ledger_entries WHERE description = 'قهوة اجتماع {R}'")
+        assert "GHIRAS_PROTECTED" in r.stderr
+        r = sql(f"UPDATE ledger_entries SET amount_sar = 1 WHERE description = 'اشتراك Railway {R}'")
+        assert "GHIRAS_PROTECTED" in r.stderr
+        step("entry voided with reason; ledger rows can't be deleted or edited")
+
+        await a.screenshot(path="/tmp/s_accounting.png", full_page=True)
+        async with a.expect_download() as dl:
+            await a.evaluate("() => { const l = document.querySelector('a[href^=\"/admin/accounting/export\"]'); l.click(); }")
+        d = await dl.value
+        path = await d.path()
+        content = open(path, encoding="utf-8-sig").read()
+        assert "اشتراك Railway" in content and "ملغى" in content, content[:200]
+        step("CSV export downloads with Arabic + voided rows marked")
 
         # ---- Login lockout
         lctx = await b.new_context(); l = await lctx.new_page()

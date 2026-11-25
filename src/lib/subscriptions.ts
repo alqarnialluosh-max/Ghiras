@@ -1,6 +1,7 @@
 import "server-only";
 import type { PoolClient } from "pg";
 import { audit } from "./audit";
+import { postSubscriptionIncome } from "./accounting";
 import { makeReference } from "./crypto";
 import { one, q, tx, isUniqueViolation } from "./db";
 import type { Subject, Track } from "./domain";
@@ -80,6 +81,7 @@ export async function activateSubscription(
     [subId, opts.orderId ?? null, opts.actorId ?? null, opts.note ?? null],
   );
   if (!rows[0]) return false;
+  await postSubscriptionIncome(c, subId); // accounting: income (+ estimated Salla fee)
   await audit("subscription.activate", "subscription", subId, opts.actorId ?? null,
     { order: opts.orderId ?? null, via: opts.actorId ? "admin" : "salla_webhook" }, c);
   return true;

@@ -24,6 +24,9 @@ export const site = {
     email: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "",
   },
 
+  /** Ghiras store on Salla */
+  sallaStore: process.env.NEXT_PUBLIC_SALLA_STORE ?? "https://salla.sa/ghirasedu",
+
   /** Fallback Salla links (the admin can also set these per plan in the dashboard). */
   sallaLinks: {
     ALL_SUBJECTS: process.env.NEXT_PUBLIC_SALLA_ALL_SUBJECTS ?? "",

@@ -14,6 +14,7 @@ export function SiteFooter() {
           <h2 className="mb-3 text-lg">غِراس</h2>
           <ul className="space-y-2 text-muted">
             <li><Link href="/#pricing" className="hover:text-lav-700">الباقات</Link></li>
+            <li><a href={site.sallaStore} target="_blank" rel="noopener noreferrer" className="hover:text-lav-700">متجرنا على سلة</a></li>
             <li><Link href="/teachers/join" className="hover:text-lav-700">انضمي لفريق المعلمات</Link></li>
             <li><Link href="/login" className="hover:text-lav-700">تسجيل الدخول</Link></li>
           </ul>

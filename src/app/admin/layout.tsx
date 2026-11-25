@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 
 const NAV = [
   { href: "/admin", label: "لوحة المالك" },
+  { href: "/admin/accounting", label: "المحاسبة" },
   { href: "/admin/subscribers", label: "المشتركين" },
   { href: "/admin/subscriptions", label: "الاشتراكات" },
   { href: "/admin/payments", label: "مدفوعات سلة" },

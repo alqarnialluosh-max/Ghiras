@@ -9,6 +9,7 @@ import { encrypt, makeReference, normalizeSaudiPhone, phoneHash, randomToken } f
 import { isUniqueViolation, one, q, tx } from "@/lib/db";
 import { env } from "@/lib/env";
 import { activateSubscription } from "@/lib/subscriptions";
+import { postPayoutExpense } from "@/lib/accounting";
 import { PAYABLE } from "@/lib/teachers";
 import { fail, fieldErrorsOf, keepValues, type ActionState } from "@/lib/validation";
 
@@ -129,10 +130,11 @@ export async function recordPayoutAction(fd: FormData) {
       [teacherId, PAYABLE, start, end]);
     const n = Number(rows[0].n);
     if (n === 0) return;
-    await c.query(
+    const { rows: po } = await c.query<{ id: string }>(
       `INSERT INTO payouts (teacher_id, period_start, period_end, sessions_count, rate_sar, amount_sar, paid_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (teacher_id, period_start, period_end) DO NOTHING`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (teacher_id, period_start, period_end) DO NOTHING RETURNING id`,
       [teacherId, start, end, n, rate, n * rate, admin.id]);
+    if (po[0]) await postPayoutExpense(c, po[0].id); // accounting: teacher pay expense
     await audit("payout.record", "user", teacherId, admin.id, { month, sessions: n, amount: n * rate }, c);
   });
   revalidatePath("/admin/payouts");
@@ -294,4 +296,65 @@ export async function addManualSubscriptionAction(_: ActionState, fd: FormData):
     if (m === "NO_STUDENT") return fail("الطالب غير موجود.");
     throw e;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Accounting
+// ---------------------------------------------------------------------------
+const entrySchema = z.object({
+  kind: z.enum(["income", "expense"], { message: "اختر النوع" }),
+  category: z.string().trim().min(2, "اختر التصنيف").max(60),
+  custom_category: z.string().trim().max(60).optional().default(""),
+  amount_sar: z.coerce.number({ message: "اكتب المبلغ" }).positive("المبلغ لازم يكون أكبر من صفر").max(10_000_000),
+  entry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "اختر التاريخ"),
+  description: z.string().trim().min(2, "اكتب وصفاً مختصراً").max(500),
+  salla_order_id: z.string().trim().max(60).optional().default(""),
+});
+
+export async function addLedgerEntryAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireRole("admin");
+  const values = keepValues(fd);
+  const parsed = entrySchema.safeParse(Object.fromEntries(fd));
+  if (!parsed.success) return fail("راجع الحقول المظللة.", fieldErrorsOf(parsed.error), values);
+  const d = parsed.data;
+  const category = d.category === "__custom" ? d.custom_category : d.category;
+  if (!category || category.length < 2) return fail("اكتب اسم التصنيف.", { custom_category: "مطلوب" }, values);
+  const row = await one<{ id: string }>(
+    `INSERT INTO ledger_entries (kind, category, amount_sar, entry_date, description, source, salla_order_id, created_by)
+     VALUES ($1,$2,$3,$4,$5,'manual',NULLIF($6,''),$7) RETURNING id`,
+    [d.kind, category, d.amount_sar, d.entry_date, d.description, d.salla_order_id, admin.id]);
+  await audit("ledger.add", "ledger_entry", row!.id, admin.id, { kind: d.kind, amount: d.amount_sar, category });
+  revalidatePath("/admin", "layout");
+  return { ok: `تم تسجيل ${d.kind === "income" ? "الإيراد" : "المصروف"}: ${d.amount_sar} ﷼ — ${category}.` };
+}
+
+export async function voidLedgerEntryAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireRole("admin");
+  const id = uuid.safeParse(fd.get("id"));
+  const reason = z.string().trim().min(3, "اكتب سبب الإلغاء").max(300).safeParse(fd.get("reason"));
+  if (!id.success) return fail("قيد غير صحيح.");
+  if (!reason.success) return fail(reason.error.issues[0].message);
+  const row = await one(`UPDATE ledger_entries SET voided_at = now(), voided_by = $2, void_reason = $3
+                          WHERE id = $1 AND voided_at IS NULL RETURNING id`, [id.data, admin.id, reason.data]);
+  if (!row) return fail("القيد ملغى مسبقاً.");
+  await audit("ledger.void", "ledger_entry", id.data, admin.id, { reason: reason.data });
+  revalidatePath("/admin", "layout");
+  return { ok: "تم إلغاء القيد، ويبقى ظاهراً في السجل مع السبب." };
+}
+
+export async function updateFeeSettingsAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireRole("admin");
+  const parsed = z.object({
+    salla_fee_percent: z.coerce.number().min(0, "نسبة غير صحيحة").max(20, "نسبة غير صحيحة"),
+    salla_fee_fixed_sar: z.coerce.number().min(0).max(100),
+  }).safeParse(Object.fromEntries(fd));
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  for (const [k, v] of Object.entries(parsed.data)) {
+    await q(`INSERT INTO settings (key, value, updated_by) VALUES ($1,$2,$3)
+             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+      [k, String(v), admin.id]);
+  }
+  await audit("settings.fees", "settings", null, admin.id, parsed.data);
+  revalidatePath("/admin/accounting");
+  return { ok: "تم الحفظ. تنطبق على المدفوعات الجديدة من سلة." };
 }
