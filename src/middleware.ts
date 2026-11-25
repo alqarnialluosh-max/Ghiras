@@ -48,5 +48,5 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   // Webhooks get no CSP/redirect handling; static assets skipped.
-  matcher: ["/((?!api/webhooks|api/health|_next/static|_next/image|icon.png|apple-icon.png|logo.png|brand/|robots.txt).*)"],
+  matcher: ["/((?!api/webhooks|api/health|api/cron|_next/static|_next/image|icon.png|apple-icon.png|logo.png|brand/|robots.txt).*)"],
 };

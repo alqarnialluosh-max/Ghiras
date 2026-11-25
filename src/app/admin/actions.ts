@@ -10,6 +10,8 @@ import { isUniqueViolation, one, q, tx } from "@/lib/db";
 import { env } from "@/lib/env";
 import { activateSubscription } from "@/lib/subscriptions";
 import { postPayoutExpense } from "@/lib/accounting";
+import { storeInfo } from "@/lib/salla-api";
+import { syncRecentOrders } from "@/lib/salla-orders";
 import { PAYABLE } from "@/lib/teachers";
 import { fail, fieldErrorsOf, keepValues, type ActionState } from "@/lib/validation";
 
@@ -357,4 +359,47 @@ export async function updateFeeSettingsAction(_: ActionState, fd: FormData): Pro
   await audit("settings.fees", "settings", null, admin.id, parsed.data);
   revalidatePath("/admin", "layout");
   return { ok: "تم الحفظ. تنطبق على المدفوعات الجديدة من سلة." };
+}
+
+// ---------------------------------------------------------------------------
+// Salla integration
+// ---------------------------------------------------------------------------
+export async function sallaSyncAction(_: ActionState): Promise<ActionState> {
+  const admin = await requireRole("admin");
+  const r = await syncRecentOrders(7);
+  await audit("salla.sync_manual", "salla", null, admin.id, r);
+  revalidatePath("/admin", "layout");
+  if (r.error) return fail(`تعذّرت المزامنة: ${r.error}`);
+  if (r.skipped) return { ok: "مزامنة أخرى قيد التشغيل الآن، حاول بعد دقيقة." };
+  return { ok: `تمت المزامنة: فُحص ${r.checked} طلب، فُعّل ${r.matched}، يحتاج مراجعة ${r.unmatched}، وحُدّثت حالة ${r.statusPushed} طلب في سلة.` };
+}
+
+export async function sallaTestAction(_: ActionState): Promise<ActionState> {
+  await requireRole("admin");
+  try {
+    const info = (await storeInfo()) as { data?: { merchant?: { name?: string; id?: number } } };
+    return { ok: `الاتصال يعمل ✓ — المتجر: ${info.data?.merchant?.name ?? "غير معروف"}` };
+  } catch (e) {
+    return fail(`فشل الاتصال: ${(e as Error).message}`);
+  }
+}
+
+export async function sallaUseProductAction(fd: FormData) {
+  const admin = await requireRole("admin");
+  const plan = z.enum(["ALL_SUBJECTS", "SINGLE_SUBJECT", "SINGLE_SESSION"]).parse(fd.get("plan"));
+  const productId = z.string().regex(/^\d{1,20}$/).parse(fd.get("product_id"));
+  const url = z.string().max(500).refine((v) => v === "" || /^https:\/\//.test(v)).parse(fd.get("url") ?? "");
+  await q(`UPDATE plans SET salla_product_id = $2, salla_url = COALESCE(NULLIF($3,''), salla_url) WHERE code = $1`, [plan, productId, url]);
+  await audit("plan.salla_product", "plan", plan, admin.id, { productId });
+  revalidatePath("/", "layout");
+}
+
+export async function sallaStatusSettingAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireRole("admin");
+  const slug = z.enum(["completed", "in_progress", ""]).safeParse(fd.get("slug") ?? "");
+  if (!slug.success) return fail("اختيار غير صحيح.");
+  await q(`UPDATE settings SET value = $1, updated_by = $2, updated_at = now() WHERE key = 'salla_complete_status'`, [slug.data, admin.id]);
+  await audit("settings.salla_status", "settings", null, admin.id, { slug: slug.data });
+  revalidatePath("/admin", "layout");
+  return { ok: "تم الحفظ." };
 }

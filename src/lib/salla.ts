@@ -8,10 +8,11 @@ import { env } from "./env";
  * sent in the `X-Salla-Signature` header (security strategy: "Signature").
  */
 export function verifySallaSignature(rawBody: string, signature: string | null): boolean {
-  const secret = env.sallaWebhookSecret;
-  if (!secret || !signature) return false;
-  const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
-  return safeEqual(expected, signature.trim().toLowerCase());
+  // Several secrets allowed (comma-separated): the store dashboard webhook and the Partners app webhook
+  const secrets = env.sallaWebhookSecret.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!secrets.length || !signature) return false;
+  const sig = signature.trim().toLowerCase();
+  return secrets.some((secret) => safeEqual(createHmac("sha256", secret).update(rawBody, "utf8").digest("hex"), sig));
 }
 
 type Json = Record<string, unknown>;

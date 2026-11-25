@@ -8,6 +8,7 @@ const NAV = [
   { href: "/admin/accounting", label: "المحاسبة" },
   { href: "/admin/subscribers", label: "المشتركين" },
   { href: "/admin/subscriptions", label: "الاشتراكات" },
+  { href: "/admin/salla", label: "ربط سلة" },
   { href: "/admin/payments", label: "مدفوعات سلة" },
   { href: "/admin/bookings", label: "الحصص" },
   { href: "/admin/teachers", label: "تفعيل المعلمات" },
