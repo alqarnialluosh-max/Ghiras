@@ -12,6 +12,7 @@ import { activateSubscription } from "@/lib/subscriptions";
 import { postPayoutExpense } from "@/lib/accounting";
 import { storeInfo } from "@/lib/salla-api";
 import { syncRecentOrders } from "@/lib/salla-orders";
+import { cancelMeeting, createMeeting, retryPendingMeetings, teamsAutoConfigured } from "@/lib/teams";
 import { PAYABLE } from "@/lib/teachers";
 import { fail, fieldErrorsOf, keepValues, type ActionState } from "@/lib/validation";
 
@@ -402,4 +403,34 @@ export async function sallaStatusSettingAction(_: ActionState, fd: FormData): Pr
   await audit("settings.salla_status", "settings", null, admin.id, { slug: slug.data });
   revalidatePath("/admin", "layout");
   return { ok: "تم الحفظ." };
+}
+
+// ---------------------------------------------------------------------------
+// Microsoft Teams integration
+// ---------------------------------------------------------------------------
+export async function teamsTestAction(_: ActionState): Promise<ActionState> {
+  const admin = await requireRole("admin");
+  if (!teamsAutoConfigured()) return fail("مفاتيح مايكروسوفت غير مضافة في Railway بعد.");
+  try {
+    const start = new Date(Date.now() + 24 * 3600_000);
+    const m = await createMeeting({
+      bookingId: crypto.randomUUID(), subject: "غِراس · اجتماع تجريبي", start,
+      end: new Date(start.getTime() + 30 * 60_000), description: "اختبار ربط تيمز — يُلغى تلقائياً.",
+    });
+    await cancelMeeting(m.eventId, undefined, "اختبار الربط");
+    await audit("teams.test", "teams", null, admin.id, { ok: true });
+    return { ok: `الربط يعمل ✓ أُنشئ اجتماع تجريبي برابط Teams ثم أُلغي. مثال الرابط: ${m.joinUrl.slice(0, 60)}…` };
+  } catch (e) {
+    await audit("teams.test", "teams", null, admin.id, { ok: false });
+    return fail(`فشل الاختبار: ${(e as Error).message}`);
+  }
+}
+
+export async function teamsRetryAction(_: ActionState): Promise<ActionState> {
+  await requireRole("admin");
+  if (!teamsAutoConfigured()) return fail("مفاتيح مايكروسوفت غير مضافة في Railway بعد.");
+  await q(`UPDATE bookings SET teams_attempts = 0 WHERE status = 'scheduled' AND teams_source <> 'auto' AND ends_at > now()`);
+  const r = await retryPendingMeetings(100);
+  revalidatePath("/admin", "layout");
+  return { ok: `حاولنا ${r.tried} حصة، وأُنشئ رابط مستقل لـ ${r.created}.` };
 }

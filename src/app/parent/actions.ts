@@ -10,6 +10,7 @@ import { one } from "@/lib/db";
 import { getPlans } from "@/lib/plans";
 import { rateLimit } from "@/lib/rate-limit";
 import { createPendingSubscription } from "@/lib/subscriptions";
+import { ensureBookingMeeting } from "@/lib/teams";
 import { fail, fieldErrorsOf, keepValues, studentSchema, type ActionState } from "@/lib/validation";
 
 export async function addStudentAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -108,6 +109,8 @@ export async function bookAction(_: ActionState, fd: FormData): Promise<ActionSt
     if (e instanceof BookingError) return fail(e.userMessage);
     throw e;
   }
+  // Give the session its own Teams meeting now (falls back to the teacher's link; retried in background)
+  await ensureBookingMeeting(id).catch(() => false);
   revalidatePath("/parent", "layout");
   redirect(`/parent/sessions/${id}?booked=1`);
 }

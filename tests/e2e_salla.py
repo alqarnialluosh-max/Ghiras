@@ -129,7 +129,7 @@ async def main():
 
         # Cron endpoint is protected
         try:
-            urllib.request.urlopen(urllib.request.Request(f"{BASE}/api/cron/salla-sync", data=b"", headers={"x-cron-key": "nope"})); raise SystemExit("cron open!")
+            urllib.request.urlopen(urllib.request.Request(f"{BASE}/api/cron/jobs", data=b"", headers={"x-cron-key": "nope"})); raise SystemExit("cron open!")
         except urllib.error.HTTPError as e: assert e.code == 403
         step("cron endpoint rejects requests without the internal key")
 

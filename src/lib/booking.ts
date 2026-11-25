@@ -2,6 +2,7 @@ import "server-only";
 import type { PoolClient } from "pg";
 import { isExclusionViolation, q, tx } from "./db";
 import { audit } from "./audit";
+import { cancelMeeting, ensureBookingMeeting, teamsAutoConfigured } from "./teams";
 import {
   BOOKING_HORIZON_DAYS, MIN_LEAD_HOURS, SESSION_MINUTES, SLOT_STEP_MINUTES,
   type Subject, type Track,
@@ -55,10 +56,10 @@ export async function eligibleTeachers(subject: Subject, grade: number) {
     `SELECT u.id, u.full_name, p.bio, p.years_experience, p.qualification, p.teams_link
        FROM users u JOIN teacher_profiles p ON p.user_id = u.id
       WHERE u.role = 'teacher' AND u.status = 'active' AND u.archived_at IS NULL
-        AND p.approved_at IS NOT NULL AND p.accepting AND p.teams_link IS NOT NULL
+        AND p.approved_at IS NOT NULL AND p.accepting AND (p.teams_link IS NOT NULL OR $3)
         AND $1::subject_code = ANY(p.subjects) AND $2 BETWEEN p.min_grade AND p.max_grade
       ORDER BY u.full_name`,
-    [subject, grade],
+    [subject, grade, teamsAutoConfigured()],
   );
 }
 
@@ -147,8 +148,9 @@ export async function adminReschedule(input: {
 }) {
   const startsAt = riyadhToUtc(input.dateKey, input.startMinute);
   const endsAt = new Date(startsAt.getTime() + SESSION_MINUTES * 60_000);
+  let oldEventId: string | null = null;
   try {
-    return await tx(async (c) => {
+    const newId = await tx(async (c) => {
       const { rows } = await c.query<{
         id: string; subscription_id: string; parent_id: string; student_id: string; subject: Subject; track: Track;
         status: string; description: string; grade: number;
@@ -159,27 +161,33 @@ export async function adminReschedule(input: {
       const old = rows[0];
       if (!old) throw new BookingError("الحصة غير موجودة.");
       if (old.status === "rescheduled") throw new BookingError("هذه الحصة أعيدت جدولتها من قبل.");
-      const { rows: t } = await c.query<{ teams_link: string }>(
+      const auto = teamsAutoConfigured();
+      const { rows: t } = await c.query<{ teams_link: string | null }>(
         `SELECT p.teams_link FROM users u JOIN teacher_profiles p ON p.user_id = u.id
           WHERE u.id = $1 AND u.role = 'teacher' AND u.status = 'active' AND p.approved_at IS NOT NULL
-            AND p.teams_link IS NOT NULL AND $2::subject_code = ANY(p.subjects)`,
-        [input.teacherId, old.subject],
+            AND (p.teams_link IS NOT NULL OR $3) AND $2::subject_code = ANY(p.subjects)`,
+        [input.teacherId, old.subject, auto],
       );
       if (!t[0]) throw new BookingError("المعلمة المختارة لا تدرّس هذه المادة أو ليس لديها رابط Teams.");
+      oldEventId = (await c.query<{ teams_event_id: string | null }>(`SELECT teams_event_id FROM bookings WHERE id = $1`, [old.id])).rows[0]?.teams_event_id ?? null;
 
       await c.query(`UPDATE bookings SET status = 'rescheduled' WHERE id = $1`, [old.id]);
       const { rows: ins } = await c.query<{ id: string }>(
         `INSERT INTO bookings (subscription_id, parent_id, student_id, teacher_id, subject, track, starts_at, ends_at,
-                               description, teams_link, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+                               description, teams_link, teams_source, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
         [old.subscription_id, old.parent_id, old.student_id, input.teacherId, old.subject, old.track, startsAt, endsAt,
-         old.description, t[0].teams_link, input.adminId],
+         old.description, t[0].teams_link ?? "", auto ? "pending" : "teacher_link", input.adminId],
       );
       await c.query(`UPDATE bookings SET replaced_by = $2 WHERE id = $1`, [old.id, ins[0].id]);
       await audit("booking.reschedule", "booking", old.id, input.adminId,
         { new_booking: ins[0].id, starts_at: startsAt.toISOString(), note: input.note ?? null }, c);
       return ins[0].id;
     });
+    // Teams: new meeting for the new time, cancel the old one (best effort)
+    await ensureBookingMeeting(newId).catch(() => false);
+    if (oldEventId) await cancelMeeting(oldEventId, input.bookingId).catch(() => false);
+    return newId;
   } catch (e) {
     if (isExclusionViolation(e)) throw new BookingError("الموعد الجديد يتعارض مع حصة أخرى للمعلمة أو الطالب.");
     throw e;
@@ -227,12 +235,13 @@ export async function createBooking(input: {
       if (!st[0]) throw new BookingError("الطالب غير موجود.");
 
       // Teacher must be eligible and available by her weekly schedule at this time
-      const { rows: t } = await c.query<{ teams_link: string }>(
+      const auto = teamsAutoConfigured();
+      const { rows: t } = await c.query<{ teams_link: string | null }>(
         `SELECT p.teams_link FROM users u JOIN teacher_profiles p ON p.user_id = u.id
           WHERE u.id = $1 AND u.role = 'teacher' AND u.status = 'active' AND u.archived_at IS NULL
-            AND p.approved_at IS NOT NULL AND p.accepting AND p.teams_link IS NOT NULL
+            AND p.approved_at IS NOT NULL AND p.accepting AND (p.teams_link IS NOT NULL OR $4)
             AND $2::subject_code = ANY(p.subjects) AND $3 BETWEEN p.min_grade AND p.max_grade`,
-        [input.teacherId, input.subject, st[0].grade],
+        [input.teacherId, input.subject, st[0].grade, auto],
       );
       if (!t[0]) throw new BookingError("المعلمة غير متاحة لهذه المادة أو الصف.");
 
@@ -251,10 +260,10 @@ export async function createBooking(input: {
 
       const { rows: ins } = await c.query<{ id: string }>(
         `INSERT INTO bookings (subscription_id, parent_id, student_id, teacher_id, subject, track,
-                               starts_at, ends_at, description, teams_link, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+                               starts_at, ends_at, description, teams_link, teams_source, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
         [sub.id, input.parentId, input.studentId, input.teacherId, input.subject, sub.track,
-         startsAt, endsAt, input.description.slice(0, 1000), t[0].teams_link, input.actorId],
+         startsAt, endsAt, input.description.slice(0, 1000), t[0].teams_link ?? "", auto ? "pending" : "teacher_link", input.actorId],
       );
       await audit("booking.create", "booking", ins[0].id, input.actorId,
         { teacher: input.teacherId, starts_at: startsAt.toISOString(), subscription: sub.id }, c);

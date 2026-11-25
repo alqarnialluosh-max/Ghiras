@@ -19,6 +19,7 @@ export function StatusChip({ status }: { status: string }) {
 export function TeamsButton({ b, size = "" }: { b: BookingView; size?: string }) {
   const s = joinState(b);
   if (s === "closed") return null;
+  if (!b.teams_link) return <span className="text-sm text-muted">يجري تجهيز رابط Teams</span>;
   return (
     <a href={b.teams_link} target="_blank" rel="noopener noreferrer"
       className={`btn ${s === "open" ? "btn-sky" : "btn-ghost"} ${size}`}>

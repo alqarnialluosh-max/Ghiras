@@ -6,6 +6,7 @@ import { ProfileForm } from "./ProfileForm";
 import { CvForm } from "./CvForm";
 import { currentCv, fileSize } from "@/lib/documents";
 import { shortDate } from "@/lib/time";
+import { teamsAutoConfigured } from "@/lib/teams";
 
 export const metadata = { title: "ملفي" };
 
@@ -18,7 +19,7 @@ export default async function TeacherProfilePage() {
     <>
       <PageTitle title="ملفي ورابط Teams" sub={p.approved_at ? "ملفك معتمد ويظهر لأولياء الأمور." : "ملفك قيد المراجعة."} />
       <div className="grid max-w-5xl gap-6 lg:grid-cols-[1.4fr_.6fr]">
-        <div className="panel p-6 md:p-8"><ProfileForm p={p} /></div>
+        <div className="panel p-6 md:p-8"><ProfileForm p={p} auto={teamsAutoConfigured()} /></div>
         <section className="panel h-fit p-6" aria-labelledby="cv-h">
           <h2 id="cv-h" className="mb-2 text-lg font-semibold">السيرة الذاتية</h2>
           {cv ? (

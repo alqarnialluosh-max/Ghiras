@@ -48,7 +48,9 @@ export function SessionDetail({ b, viewer, studentNotes, children }: {
 
       <aside className="panel h-fit p-6">
         <h2 className="text-lg font-semibold">رابط الحصة على Teams</h2>
-        {b.status === "scheduled" && js !== "closed" ? (
+        {b.status === "scheduled" && js !== "closed" && !b.teams_link ? (
+          <p className="mt-2 text-[.95rem] text-muted">يجري تجهيز رابط Teams الخاص بهذه الحصة، وسيظهر هنا خلال دقائق.</p>
+        ) : b.status === "scheduled" && js !== "closed" ? (
           <>
             <p className="mt-2 text-[.95rem] text-muted">
               {js === "open" ? "الحصة مفتوحة الآن، ادخل مباشرة." : `الرابط جاهز. يُفضَّل الدخول قبل الموعد بـ${JOIN_OPENS_MINUTES} دقيقة.`}

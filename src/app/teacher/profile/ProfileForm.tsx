@@ -5,12 +5,13 @@ import { Field, FieldErrorText, FormMessage, SubmitButton } from "@/components/f
 import { GRADES, SUBJECTS } from "@/lib/domain";
 import type { TeacherProfile } from "@/lib/teachers";
 
-export function ProfileForm({ p }: { p: TeacherProfile }) {
+export function ProfileForm({ p, auto = false }: { p: TeacherProfile; auto?: boolean }) {
   const [state, action] = useActionState(updateProfileAction, {});
   return (
     <form action={action} className="space-y-5">
       <FormMessage state={state} />
-      <Field name="teams_link" label="رابط اجتماع Teams الدائم" dir="ltr" state={state} defaultValue={p.teams_link ?? ""}
+      {auto && <p className="alert alert-info">تُنشأ روابط Teams تلقائياً لكل حصة. الرابط الدائم أدناه اختياري ويُستخدم احتياطاً فقط.</p>}
+      <Field name="teams_link" label={auto ? "رابط اجتماع Teams الدائم (احتياطي)" : "رابط اجتماع Teams الدائم"} dir="ltr" state={state} defaultValue={p.teams_link ?? ""}
         placeholder="https://teams.microsoft.com/l/meetup-join/..."
         hint="من Teams: التقويم ← اجتماع جديد ← انسخي رابط الانضمام. يظهر هذا الرابط للطلاب في جميع حصصك." />
       <fieldset className="field">

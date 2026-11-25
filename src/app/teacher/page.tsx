@@ -7,6 +7,7 @@ import { env } from "@/lib/env";
 import { bookingsFor } from "@/lib/queries";
 import { teacherProfile, PAYABLE } from "@/lib/teachers";
 import { site } from "@/config/site";
+import { teamsAutoConfigured } from "@/lib/teams";
 
 export default async function TeacherHome() {
   const user = await requireRole("teacher");
@@ -21,7 +22,7 @@ export default async function TeacherHome() {
   ]);
   const approved = !!profile?.approved_at && user.status === "active";
   const missing = [
-    !profile?.teams_link && { href: "/teacher/profile", text: "أضيفي رابط اجتماع Teams الدائم، فبدونه لن تظهري للحجز." },
+    !profile?.teams_link && !teamsAutoConfigured() && { href: "/teacher/profile", text: "أضيفي رابط اجتماع Teams الدائم، فبدونه لن تظهري للحجز." },
     Number(rules?.n) === 0 && { href: "/teacher/availability", text: "حددي أوقاتك الأسبوعية المتاحة." },
   ].filter(Boolean) as { href: string; text: string }[];
 
