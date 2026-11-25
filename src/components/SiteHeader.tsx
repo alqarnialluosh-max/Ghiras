@@ -7,12 +7,12 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-line/70 bg-white/90 backdrop-blur">
       <div className="wrap flex h-[72px] items-center justify-between gap-4">
-        <Logo />
+        <Logo height={46} />
         <nav aria-label="التنقل الرئيسي" className="hidden items-center gap-7 text-[.97rem] md:flex">
-          <a href="/#tracks" className="hover:text-lav-700">المسارات</a>
-          <a href="/#how" className="hover:text-lav-700">طريقة الحجز</a>
-          <a href="/#pricing" className="hover:text-lav-700">الباقات</a>
-          <a href="/#faq" className="hover:text-lav-700">الأسئلة الشائعة</a>
+          <Link href="/#tracks" className="hover:text-lav-700">المسارات</Link>
+          <Link href="/#how" className="hover:text-lav-700">طريقة الحجز</Link>
+          <Link href="/#pricing" className="hover:text-lav-700">الباقات</Link>
+          <Link href="/#faq" className="hover:text-lav-700">الأسئلة الشائعة</Link>
           <Link href="/teachers/join" className="hover:text-lav-700">انضمي كمعلمة</Link>
         </nav>
         <div className="flex items-center gap-2">

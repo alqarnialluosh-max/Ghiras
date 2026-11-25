@@ -3,7 +3,6 @@ import { Pool, type PoolClient, type QueryResultRow } from "pg";
 import { env } from "./env";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __ghirasPool: Pool | undefined;
 }
 

@@ -7,7 +7,6 @@ export const metadata: Metadata = {
   title: { default: `${site.name} | دروس خصوصية أونلاين للابتدائي والمتوسط`, template: `%s | ${site.name}` },
   description: "حصص خصوصية أونلاين عبر Teams في الرياضيات ولغتي والعلوم، للصفوف من الأول الابتدائي إلى الثالث المتوسط، بإشراف المعلمة غادة القرني.",
   openGraph: { locale: "ar_SA", type: "website", siteName: site.name },
-  icons: { icon: "/icon.svg" },
 };
 
 export const viewport: Viewport = { themeColor: "#5b45b0", width: "device-width", initialScale: 1 };

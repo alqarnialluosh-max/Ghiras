@@ -1,4 +1,6 @@
 /* Applies db/migrations/*.sql in order, exactly once each, inside a transaction. */
+import { loadEnvConfig } from "@next/env";
+loadEnvConfig(process.cwd());
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Client } from "pg";

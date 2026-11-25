@@ -1,5 +1,7 @@
 /* Creates (or promotes) an admin account.
    ADMIN_EMAIL=... ADMIN_NAME="..." ADMIN_PASSWORD=... npx tsx scripts/create-admin.ts */
+import { loadEnvConfig } from "@next/env";
+loadEnvConfig(process.cwd());
 import { hash } from "@node-rs/argon2";
 import { Client } from "pg";
 

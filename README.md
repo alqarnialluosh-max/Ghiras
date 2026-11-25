@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# غِراس — منصة الدروس الخصوصية
 
-## Getting Started
+منصة دروس خصوصية أونلاين للصفوف من الأول الابتدائي إلى الثالث المتوسط (الرياضيات، لغتي، العلوم)، بإشراف أ. غادة القرني.
 
-First, run the development server:
+**التقنيات:** Next.js 15 · PostgreSQL · TypeScript · Tailwind — النشر على Railway، الدفع عبر سلة، الحصص عبر Microsoft Teams.
+
+---
+
+## الباقات (قابلة للتعديل من لوحة الإدارة ← الباقات)
+
+| الباقة | السعر | الحصص | الحد الأسبوعي | المدة |
+|---|---|---|---|---|
+| كل المواد | 599 ﷼ | 8 + الأولى مجاناً = 9 | 2 (+الحصة المجانية في الأسبوع الأول) | 30 يوم |
+| مادة واحدة | 399 ﷼ | 8 | 2 | 30 يوم |
+| حصة واحدة | 80 ﷼ | 1 (ساعة) | — | 14 يوم |
+
+أجر المعلمة: 35 ﷼ عن كل حصة مكتملة أو غاب فيها الطالب (`TEACHER_RATE_SAR`).
+غياب المعلمة لا يُخصم من رصيد الطالب ولا يُحتسب أجراً.
+
+---
+
+## الأمان وحماية البيانات
+
+- **لا حذف أبداً:** قاعدة البيانات نفسها تمنع `DELETE` و`TRUNCATE` على كل الجداول الأساسية (Triggers). البيانات تُؤرشف أو تتغير حالتها فقط.
+- **لا تعارض أبداً:** قيود `EXCLUDE` في PostgreSQL تمنع أي حصتين متداخلتين للمعلمة أو للطالب، حتى لو ضغط شخصان بنفس اللحظة.
+- **لا إلغاء للحصص:** ولي الأمر ما يقدر يلغي. الإدارة فقط تعيد الجدولة، والحصة الأصلية تبقى في السجل مربوطة بالجديدة.
+- **سجل تدقيق** لكل عملية مهمة، غير قابل للتعديل أو الحذف (`/admin/audit`).
+- **تشفير:** أرقام الجوال وملاحظات الطلاب مشفّرة بـ AES-256-GCM. كلمات المرور بـ Argon2id.
+- **الجلسات:** كوكي `__Host-` (HttpOnly · Secure · SameSite)، والتوكن نفسه ما يُخزن، فقط بصمته.
+- **حماية الدخول:** قفل الحساب 15 دقيقة بعد 5 محاولات خاطئة، وحد للمحاولات حسب الجهاز والبريد.
+- **ترويسات أمان:** CSP بـ nonce، HSTS، منع التضمين (X-Frame-Options)، وغيرها.
+- **العزل:** كل ولي أمر يشوف بياناته فقط، والمعلمة تشوف حصصها فقط (مُختبر آلياً).
+- **سلة:** إشعارات الدفع موقّعة بـ HMAC، وأي إشعار بتوقيع خاطئ يُرفض، وتكرار نفس الإشعار ما يفعّل مرتين.
+
+> ⚠️ **مهم جداً:** `ENCRYPTION_KEY` لا يتغير أبداً بعد تشغيل الموقع. لو تغير، أرقام الجوالات والملاحظات المشفّرة ما تنقرأ. احفظ نسخة منه في مكان آمن.
+
+---
+
+## التشغيل على Railway
+
+1. في مشروع Railway: خدمة **Postgres** (موجودة) + خدمة للموقع مربوطة بمستودع GitHub.
+2. متغيرات خدمة الموقع (انسخ من `.env.example`):
+   - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
+   - `ENCRYPTION_KEY` ← `openssl rand -base64 32`
+   - `HASH_SECRET` ← `openssl rand -hex 32`
+   - `SALLA_WEBHOOK_SECRET`، `NEXT_PUBLIC_SITE_URL`، `TEACHER_RATE_SAR=35`
+3. كل نشر يشغّل الـ migrations تلقائياً قبل تشغيل الموقع (`npm start`).
+4. إنشاء حساب الإدارة (مرة وحدة، من Railway ← الخدمة ← Shell، أو محلياً مع `DATABASE_URL` الإنتاجي):
+   ```bash
+   ADMIN_EMAIL=you@example.com ADMIN_NAME="غادة القرني" ADMIN_PASSWORD='كلمة-مرور-قوية-12+' npm run create-admin
+   ```
+5. **النسخ الاحتياطي:** فعّل Backups في خدمة Postgres على Railway (يومي). اختياري: صلاحية قاعدة بيانات مقيدة بدون حذف نهائياً — `db/optional/app_role.sql`.
+
+---
+
+## ربط سلة (الدفع)
+
+1. أنشئ في متجرك على سلة 3 منتجات (خدمات رقمية): باقة كل المواد 599، مادة واحدة 399، حصة واحدة 80.
+2. في كل منتج اجعل الـ **SKU** = رمز الباقة: `ALL_SUBJECTS` / `SINGLE_SUBJECT` / `SINGLE_SESSION`
+   (أو انسخ رقم المنتج Product ID وضعه في لوحة الإدارة ← الباقات).
+3. ضع رابط كل منتج في لوحة الإدارة ← الباقات ← «رابط المنتج في سلة».
+4. في سلة: الإعدادات ← أدوات المطورين ← Webhooks ← إضافة:
+   - الرابط: `https://دومينك/api/webhooks/salla`
+   - الأحداث: `order.created` و `order.status.updated`
+   - طريقة الحماية: **Signature**، والسر نفسه في `SALLA_WEBHOOK_SECRET`.
+5. **كيف يتفعل الاشتراك:** ولي الأمر يختار الباقة في غِراس ← ينتقل لسلة ويدفع ← سلة ترسل إشعار ← النظام يطابق البريد أو الجوال + الباقة ← يتفعل تلقائياً.
+   أي دفعة ما تطابقت (بريد مختلف، كوبون، تحويل بنكي) تظهر في **لوحة الإدارة ← مدفوعات سلة** وتربطها بضغطة.
+
+---
+
+## روابط Teams
+
+كل معلمة تضع رابط اجتماع Teams **دائم** في صفحتها (ملفي ورابط Teams). عند الحجز يُنسخ الرابط داخل الحصة نفسها، فيظهر لولي الأمر وللمعلمة مع وصف الحصة.
+المعلمة بدون رابط ما تظهر للحجز. لاحقاً عند توفر حساب Microsoft 365 للأعمال يمكن توليد رابط مستقل لكل حصة تلقائياً.
+
+**إنشاء رابط دائم في Teams:** التقويم ← اجتماع جديد ← اختيار تاريخ بعيد وتكرار ← حفظ ← نسخ رابط الانضمام.
+
+---
+
+## التطوير محلياً
 
 ```bash
+cp .env.example .env.local   # وعبّئ القيم
+npm install
+npm run migrate
+npm run create-admin
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**الاختبار الشامل:** `tests/e2e.py` (Playwright) يمر على رحلة كاملة: تسجيل معلمة ← اعتماد ← ولي أمر ← اشتراك ← إشعار سلة موقّع ← حجز ← رابط Teams ← منع التعارض ← منع الحذف ← عزل البيانات ← قفل الحساب.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## خريطة المشروع
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+db/migrations/        هيكل قاعدة البيانات وقيود الحماية
+src/lib/booking.ts    محرك الحجز (الأوقات المتاحة، الحجز الذري، إعادة الجدولة)
+src/lib/subscriptions.ts  الاشتراكات والتفعيل
+src/app/api/webhooks/salla  استقبال مدفوعات سلة
+src/app/(site)        صفحة الهبوط والصفحات العامة
+src/app/parent        لوحة ولي الأمر
+src/app/teacher       لوحة المعلمة
+src/app/admin         لوحة الإدارة
+src/config/site.ts    نصوص قابلة للتعديل (نبذة المشرفة، التواصل)
+```

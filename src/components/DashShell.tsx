@@ -32,7 +32,7 @@ export function DashShell({ user, nav, children }: {
           <NavLinks items={nav} className="flex" />
         </div>
       </header>
-      <main id="main" className="wrap py-8 md:py-10">{children}</main>
+      <main id="main" className="wrap py-8 md:py-10 [&_h2]:font-sans [&_h2]:font-semibold">{children}</main>
       <footer className="wrap pb-8 text-center text-sm text-muted">
         <Link href="/privacy" className="hover:underline">سياسة الخصوصية</Link>
       </footer>

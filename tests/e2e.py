@@ -1,0 +1,197 @@
+import asyncio, json, hmac, hashlib, time, urllib.request, subprocess, random
+from playwright.async_api import async_playwright, expect
+
+BASE = "http://localhost:3000"
+R = random.randint(1000, 9999)
+T_EMAIL, P_EMAIL = f"teacher{R}@test.sa", f"parent{R}@test.sa"
+PW = "Passw0rd123"
+TEAMS = "https://teams.microsoft.com/l/meetup-join/19%3ameeting_TEST%40thread.v2/0"
+
+def sql(q):
+    return subprocess.run(["psql", "-h", "/tmp", "-U", "postgres", "ghiras", "-tAc", q], capture_output=True, text=True)
+
+def step(m): print("✓", m, flush=True)
+
+async def main():
+    async with async_playwright() as p:
+        b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox"])
+        shots = []
+
+        # ---- Teacher signs up
+        tctx = await b.new_context(viewport={"width": 1280, "height": 900})
+        t = await tctx.new_page()
+        await t.goto(f"{BASE}/teachers/join")
+        await t.fill("#f-full_name", "نورة العتيبي")
+        await t.fill("#f-email", T_EMAIL)
+        await t.fill("#f-phone", "0551234567")
+        await t.fill("#f-password", PW)
+        await t.check("input[name=subjects][value=math]")
+        await t.check("input[name=subjects][value=science]")
+        await t.fill("#f-qualification", "بكالوريوس رياضيات")
+        await t.fill("#f-years_experience", "6")
+        await t.fill("#bio", "معلمة رياضيات بخبرة ست سنوات في تأسيس طلاب الابتدائي والمتوسط بأسلوب مبسط.")
+        await t.check("input[name=consent]")
+        await t.click("button[type=submit]")
+        await t.wait_for_url(f"{BASE}/teacher")
+        await expect(t.get_by_text("طلبك قيد المراجعة")).to_be_visible()
+        step("teacher registered (pending)")
+
+        await t.goto(f"{BASE}/teacher/profile")
+        await t.fill("#f-teams_link", TEAMS)
+        await t.click("button[type=submit]:has-text('احفظي الملف')")
+        await expect(t.get_by_text("تم حفظ ملفك")).to_be_visible()
+        step("teacher saved Teams link")
+
+        await t.goto(f"{BASE}/teacher/availability")
+        for i in range(7):
+            await t.locator("label", has_text=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"][i]).first.click()
+        await t.select_option("#start", "08:00")
+        await t.select_option("#end", "23:00")
+        await t.click("button:has-text('أضيفي الفترة')")
+        await expect(t.get_by_text("تمت إضافة الفترة")).to_be_visible()
+        step("teacher availability added (7 days, 8am–11pm)")
+        await t.screenshot(path="/tmp/s_teacher_avail.png", full_page=True)
+
+        # ---- Admin approves
+        actx = await b.new_context(viewport={"width": 1280, "height": 900})
+        a = await actx.new_page()
+        await a.goto(f"{BASE}/login")
+        await a.fill("#f-email", "admin@ghiras.test")
+        await a.fill("#f-password", "AdminPass12345")
+        await a.click("button[type=submit]")
+        await a.wait_for_url(f"{BASE}/admin")
+        await a.goto(f"{BASE}/admin/teachers")
+        await a.locator("details", has_text="نورة العتيبي").locator("button:has-text('اعتماد المعلمة')").click()
+        await expect(a.locator("details", has_text="نورة العتيبي").get_by_text("معتمدة").first).to_be_visible()
+        step("admin approved teacher")
+
+        # ---- Configure Salla link for the plan (as admin would in /admin/plans)
+        await a.goto(f"{BASE}/admin/plans")
+        form = a.locator("section", has_text="باقة كل المواد")
+        await form.locator("input[name=salla_url]").fill("https://example-salla.test/ghiras-all")
+        await form.locator("input[name=salla_product_id]").fill("111")
+        await form.locator("button:has-text('حفظ')").click()
+        await expect(form.get_by_text("تم حفظ الباقة")).to_be_visible()
+        step("admin set Salla link + product id")
+
+        # ---- Parent signs up, adds student, subscribes
+        pctx = await b.new_context(viewport={"width": 1280, "height": 900})
+        await pctx.route("https://example-salla.test/**", lambda r: r.fulfill(status=200, body="<h1>Salla checkout (mock)</h1>", content_type="text/html"))
+        pg = await pctx.new_page()
+        await pg.goto(f"{BASE}/register")
+        await pg.fill("#f-full_name", "محمد القحطاني")
+        await pg.fill("#f-email", P_EMAIL)
+        await pg.fill("#f-phone", "0509876543")
+        await pg.fill("#f-password", PW)
+        await pg.check("input[name=consent]")
+        await pg.click("button[type=submit]")
+        await pg.wait_for_url(f"{BASE}/parent?welcome=1")
+        step("parent registered")
+
+        await pg.goto(f"{BASE}/parent/students")
+        await pg.locator("section", has_text="إضافة طالب").locator("#f-full_name").fill("سارة")
+        await pg.locator("section", has_text="إضافة طالب").locator("select[name=grade]").select_option("5")
+        await pg.locator("section", has_text="إضافة طالب").locator("textarea").fill("تحتاج تأسيس في الكسور")
+        await pg.click("button:has-text('أضف الطالب')")
+        await expect(pg.get_by_text("تمت إضافة سارة")).to_be_visible()
+        step("student added")
+
+        await pg.goto(f"{BASE}/parent/subscribe?plan=ALL_SUBJECTS")
+        await pg.screenshot(path="/tmp/s_subscribe.png", full_page=True)
+        await pg.click("button:has-text('انتقل للدفع')")
+        await pg.wait_for_url("https://example-salla.test/ghiras-all")
+        step("parent redirected to Salla")
+
+        # ---- Salla webhook (signed)
+        payload = {"event": "order.created", "merchant": 1, "data": {
+            "id": 98765000 + R, "reference_id": 5555, "status": {"slug": "under_review"},
+            "customer": {"email": P_EMAIL.upper(), "mobile": "509876543", "mobile_code": "+966"},
+            "amounts": {"total": {"amount": 599}}, "items": [{"product": {"id": 111}, "sku": ""}]}}
+        body = json.dumps(payload).encode()
+        bad = urllib.request.Request(f"{BASE}/api/webhooks/salla", data=body, headers={"x-salla-signature": "bad", "content-type": "application/json"})
+        try:
+            urllib.request.urlopen(bad); raise SystemExit("bad signature accepted!")
+        except urllib.error.HTTPError as e:
+            assert e.code == 401
+        step("webhook with bad signature rejected (401)")
+        sig = hmac.new(b"dev-salla-secret", body, hashlib.sha256).hexdigest()
+        req = urllib.request.Request(f"{BASE}/api/webhooks/salla", data=body, headers={"x-salla-signature": sig, "content-type": "application/json"})
+        res = json.loads(urllib.request.urlopen(req).read())
+        assert res["result"] == "matched", res
+        res2 = json.loads(urllib.request.urlopen(urllib.request.Request(f"{BASE}/api/webhooks/salla", data=body, headers={"x-salla-signature": sig})).read())
+        assert res2["result"] == "ignored", res2
+        step("signed webhook matched & activated; replay ignored (idempotent)")
+
+        await pg.goto(f"{BASE}/parent")
+        await expect(pg.get_by_text("9 حصص متبقية").or_(pg.get_by_text("من 9 حصص متبقية"))).to_be_visible()
+        await pg.screenshot(path="/tmp/s_parent_home.png", full_page=True)
+        step("parent sees active subscription with 9 sessions")
+
+        # ---- Book: time first, then teacher
+        await pg.goto(f"{BASE}/parent/book")
+        await pg.click("a:has-text('الرياضيات')")
+        await pg.locator("a[href*='date=']").nth(1).click()
+        await pg.wait_for_load_state("networkidle")
+        await pg.locator("a[href*='minute=']").first.click()
+        await pg.wait_for_load_state("networkidle")
+        await expect(pg.get_by_text("نورة العتيبي")).to_be_visible()
+        await pg.fill("#description", "مراجعة الكسور العشرية وحل واجب صفحة 42")
+        await pg.screenshot(path="/tmp/s_book.png", full_page=True)
+        await pg.click("button:has-text('أكّد الحجز')")
+        await pg.wait_for_url("**/parent/sessions/*?booked=1")
+        await expect(pg.get_by_text("تم الحجز")).to_be_visible()
+        href = await pg.locator(f"a[href='{TEAMS}']").first.get_attribute("href")
+        assert href == TEAMS
+        await pg.screenshot(path="/tmp/s_session_parent.png", full_page=True)
+        step("booking created; session page shows Teams link + description")
+
+        # ---- Same slot again must fail (student overlap) — try via second booking of same time
+        booked_url = pg.url
+        bid = booked_url.split("/sessions/")[1].split("?")[0]
+        r = sql(f"""INSERT INTO bookings (subscription_id,parent_id,student_id,teacher_id,subject,track,starts_at,ends_at,teams_link,created_by)
+                    SELECT subscription_id,parent_id,student_id,teacher_id,subject,track,starts_at + interval '30 minutes',ends_at + interval '30 minutes',teams_link,created_by FROM bookings WHERE id='{bid}'""")
+        assert "bookings_no_teacher_overlap" in r.stderr or "bookings_no_student_overlap" in r.stderr, r.stderr
+        step("overlapping booking rejected by DB constraint")
+        r = sql(f"DELETE FROM bookings WHERE id='{bid}'")
+        assert "GHIRAS_PROTECTED" in r.stderr
+        step("booking cannot be deleted")
+
+        # ---- Teacher sees it with student notes
+        await t.goto(f"{BASE}/teacher/sessions/{bid}")
+        await expect(t.get_by_text("تحتاج تأسيس في الكسور")).to_be_visible()
+        await expect(t.get_by_text("مراجعة الكسور العشرية")).to_be_visible()
+        await t.screenshot(path="/tmp/s_session_teacher.png", full_page=True)
+        step("teacher sees session, description, encrypted student notes (decrypted for her)")
+
+        # ---- Isolation: another parent can't see this session
+        octx = await b.new_context()
+        o = await octx.new_page()
+        await o.goto(f"{BASE}/register")
+        await o.fill("#f-full_name", "ولي أمر آخر"); await o.fill("#f-email", f"other{R}@test.sa")
+        await o.fill("#f-phone", "0501112223"); await o.fill("#f-password", PW); await o.check("input[name=consent]")
+        await o.click("button[type=submit]"); await o.wait_for_url("**/parent**")
+        resp = await o.goto(f"{BASE}/parent/sessions/{bid}")
+        assert resp.status == 404, resp.status
+        resp = await o.goto(f"{BASE}/admin")
+        assert "/parent" in o.url
+        step("other parent gets 404 on foreign session; blocked from /admin")
+
+        # ---- Admin screens
+        for path, name in [("/admin", "admin_home"), ("/admin/subscriptions", "admin_subs"), ("/admin/payments?all=1", "admin_pay"), ("/admin/audit", "admin_audit")]:
+            await a.goto(BASE + path); await a.screenshot(path=f"/tmp/s_{name}.png", full_page=True)
+        step("admin screens rendered")
+
+        # ---- Login lockout
+        lctx = await b.new_context(); l = await lctx.new_page()
+        for i in range(5):
+            await l.goto(f"{BASE}/login"); await l.fill("#f-email", P_EMAIL); await l.fill("#f-password", "wrongpass1"); await l.click("button[type=submit]")
+            await l.wait_for_selector("[role=alert]")
+        await l.goto(f"{BASE}/login"); await l.fill("#f-email", P_EMAIL); await l.fill("#f-password", PW); await l.click("button[type=submit]")
+        await expect(l.get_by_text("مقفل مؤقتاً")).to_be_visible()
+        step("account locks after 5 wrong passwords")
+        sql(f"UPDATE users SET locked_until = NULL WHERE email = '{P_EMAIL}'")
+
+        await b.close()
+        print("\nALL E2E CHECKS PASSED")
+
+asyncio.run(main())

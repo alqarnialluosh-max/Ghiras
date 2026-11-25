@@ -11,15 +11,15 @@ const LEAVES = [
 export function Seedling() {
   const stemLen = 470;
   return (
-    <svg viewBox="0 0 360 560" direction="ltr" className="h-auto w-full max-w-[380px]" role="img"
+    <svg viewBox="0 0 360 560" direction="ltr" className="h-auto w-full max-w-[290px] md:max-w-[380px]" role="img"
       aria-label="نبتة بتسع أوراق، كل ورقة صف دراسي من الأول الابتدائي إلى الثالث المتوسط">
       {/* soil */}
       <ellipse cx="180" cy="530" rx="120" ry="16" fill="#efeafd" />
       <path d="M90 528c30-10 150-10 180 0" stroke="#dcd2fa" strokeWidth="3" fill="none" strokeLinecap="round" />
       {/* stage divider: primary vs intermediate */}
-      <line x1="40" y1="220" x2="320" y2="220" stroke="#dcd2fa" strokeDasharray="4 7" strokeWidth="1.5" />
-      <text x="320" y="238" textAnchor="end" fontSize="13" fill="#6b6488" fontFamily="var(--font-sans)">ابتدائي ↓</text>
-      <text x="320" y="210" textAnchor="end" fontSize="13" fill="#6b6488" fontFamily="var(--font-sans)">متوسط ↑</text>
+      <line x1="30" y1="220" x2="330" y2="220" stroke="#dcd2fa" strokeDasharray="4 7" strokeWidth="1.5" />
+      <text x="30" y="238" textAnchor="start" fontSize="13" fill="#6b6488" fontFamily="var(--font-sans)">ابتدائي ↓</text>
+      <text x="30" y="210" textAnchor="start" fontSize="13" fill="#6b6488" fontFamily="var(--font-sans)">متوسط ↑</text>
 
       {/* stem */}
       <path
