@@ -73,7 +73,7 @@ export function TeacherForm() {
       <div>
         <label className="flex items-start gap-3 text-[.95rem]">
           <input type="checkbox" name="consent" defaultChecked={v.consent === "on"} className="mt-1.5 h-4 w-4 accent-lav-700" />
-          <span>أوافق على <Link href="/terms" className="text-lav-700 underline" target="_blank">شروط العمل</Link> و<Link href="/privacy" className="text-lav-700 underline" target="_blank">سياسة الخصوصية</Link>.</span>
+          <span>أوافق على <Link href="/terms#teachers" className="text-lav-700 underline" target="_blank">شروط عمل المعلمات</Link> و<Link href="/privacy" className="text-lav-700 underline" target="_blank">سياسة الخصوصية</Link>.</span>
         </label>
         <FieldErrorText state={state} name="consent" />
       </div>
