@@ -22,6 +22,7 @@ export function DashShell({ user, nav, children }: {
               <p className="text-[.92rem] font-medium">{user.full_name}</p>
               <p className="text-xs text-muted">{ROLE_LABEL[user.role]}</p>
             </div>
+            <Link href="/account" className="btn btn-ghost btn-sm hidden sm:inline-flex">حسابي</Link>
             <form action={logoutAction}>
               <button className="btn btn-ghost btn-sm" type="submit">خروج</button>
             </form>

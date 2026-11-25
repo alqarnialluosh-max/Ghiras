@@ -139,6 +139,54 @@ export async function subscriptionHeadroom(r: Runner, sub: Sub, startsAt: Date) 
 }
 
 /**
+ * Admin reschedule: the old booking is kept (status 'rescheduled', linked via replaced_by)
+ * and a new booking is created on the same subscription. Exclusion constraints still apply.
+ */
+export async function adminReschedule(input: {
+  adminId: string; bookingId: string; teacherId: string; dateKey: string; startMinute: number; note?: string;
+}) {
+  const startsAt = riyadhToUtc(input.dateKey, input.startMinute);
+  const endsAt = new Date(startsAt.getTime() + SESSION_MINUTES * 60_000);
+  try {
+    return await tx(async (c) => {
+      const { rows } = await c.query<{
+        id: string; subscription_id: string; parent_id: string; student_id: string; subject: Subject; track: Track;
+        status: string; description: string; grade: number;
+      }>(
+        `SELECT b.*, st.grade FROM bookings b JOIN students st ON st.id = b.student_id WHERE b.id = $1 FOR UPDATE OF b`,
+        [input.bookingId],
+      );
+      const old = rows[0];
+      if (!old) throw new BookingError("الحصة غير موجودة.");
+      if (old.status === "rescheduled") throw new BookingError("هذه الحصة أعيدت جدولتها من قبل.");
+      const { rows: t } = await c.query<{ teams_link: string }>(
+        `SELECT p.teams_link FROM users u JOIN teacher_profiles p ON p.user_id = u.id
+          WHERE u.id = $1 AND u.role = 'teacher' AND u.status = 'active' AND p.approved_at IS NOT NULL
+            AND p.teams_link IS NOT NULL AND $2::subject_code = ANY(p.subjects)`,
+        [input.teacherId, old.subject],
+      );
+      if (!t[0]) throw new BookingError("المعلمة المختارة لا تدرّس هذه المادة أو ليس لديها رابط Teams.");
+
+      await c.query(`UPDATE bookings SET status = 'rescheduled' WHERE id = $1`, [old.id]);
+      const { rows: ins } = await c.query<{ id: string }>(
+        `INSERT INTO bookings (subscription_id, parent_id, student_id, teacher_id, subject, track, starts_at, ends_at,
+                               description, teams_link, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+        [old.subscription_id, old.parent_id, old.student_id, input.teacherId, old.subject, old.track, startsAt, endsAt,
+         old.description, t[0].teams_link, input.adminId],
+      );
+      await c.query(`UPDATE bookings SET replaced_by = $2 WHERE id = $1`, [old.id, ins[0].id]);
+      await audit("booking.reschedule", "booking", old.id, input.adminId,
+        { new_booking: ins[0].id, starts_at: startsAt.toISOString(), note: input.note ?? null }, c);
+      return ins[0].id;
+    });
+  } catch (e) {
+    if (isExclusionViolation(e)) throw new BookingError("الموعد الجديد يتعارض مع حصة أخرى للمعلمة أو الطالب.");
+    throw e;
+  }
+}
+
+/**
  * Creates a booking atomically. Throws BookingError with an Arabic, user-facing message.
  * Concurrency: the subscription row is locked FOR UPDATE (serializes credit usage),
  * and the EXCLUDE constraints make teacher/student overlap impossible even under races.
