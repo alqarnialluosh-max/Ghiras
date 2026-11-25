@@ -31,6 +31,20 @@ async def main():
         await t.fill("#f-years_experience", "6")
         await t.fill("#bio", "معلمة رياضيات بخبرة ست سنوات في تأسيس طلاب الابتدائي والمتوسط بأسلوب مبسط.")
         await t.check("input[name=consent]")
+        # no CV → rejected (bypass the browser's required check to test the server)
+        await t.evaluate("() => document.querySelector('#cv').removeAttribute('required')")
+        await t.click("button[type=submit]")
+        await expect(t.get_by_text("إرفاق السيرة الذاتية مطلوب")).to_be_visible()
+        # fake file renamed to .pdf → rejected by content check
+        await t.fill("#f-password", PW)
+        await t.set_input_files("#cv", "tests/fake.pdf")
+        await t.check("input[name=consent]")
+        await t.click("button[type=submit]")
+        await expect(t.get_by_text("الملف لازم يكون PDF")).to_be_visible()
+        step("teacher join rejects missing CV and fake files")
+        await t.fill("#f-password", PW)
+        await t.set_input_files("#cv", "tests/cv.pdf")
+        await t.check("input[name=consent]")
         await t.click("button[type=submit]")
         await t.wait_for_url(f"{BASE}/teacher")
         await expect(t.get_by_text("طلبك قيد المراجعة")).to_be_visible()
@@ -64,6 +78,12 @@ async def main():
         await a.locator("details", has_text="نورة العتيبي").locator("button:has-text('اعتماد المعلمة')").click()
         await expect(a.locator("details", has_text="نورة العتيبي").get_by_text("معتمدة").first).to_be_visible()
         step("admin approved teacher")
+        cv_link = a.locator("details", has_text="نورة العتيبي").locator("a:has-text('تحميل السيرة الذاتية')").first
+        href = await cv_link.get_attribute("href")
+        resp = await a.request.get(BASE + href)
+        assert resp.status == 200 and (await resp.body()).startswith(b"%PDF"), resp.status
+        CV_HREF = href
+        step("owner downloads the teacher's CV")
 
         # ---- Configure Salla link for the plan (as admin would in /admin/plans)
         await a.goto(f"{BASE}/admin/plans")
@@ -174,7 +194,9 @@ async def main():
         assert resp.status == 404, resp.status
         resp = await o.goto(f"{BASE}/admin")
         assert "/parent" in o.url
-        step("other parent gets 404 on foreign session; blocked from /admin")
+        r404 = await o.request.get(BASE + CV_HREF)
+        assert r404.status == 404, r404.status
+        step("other parent gets 404 on foreign session; blocked from /admin; can't download CVs")
 
         # ---- Admin screens
         for path, name in [("/admin", "admin_home"), ("/admin/subscriptions", "admin_subs"), ("/admin/payments?all=1", "admin_pay"), ("/admin/audit", "admin_audit")]:
@@ -204,7 +226,7 @@ async def main():
 
         await a.goto(f"{BASE}/admin/teachers/{tid}")
         await a.click("button:has-text('تسجيل الدفع')")
-        await expect(a.get_by_text("مدفوع").first).to_be_visible()
+        await expect(a.locator("span.chip", has_text="مدفوع").first).to_be_visible()
         bal = sql(f"SELECT coalesce(sum(amount_sar),0) FROM payouts WHERE teacher_id='{tid}'").stdout.strip()
         assert float(bal) == 35.0, bal
         step("payout recorded from teacher page; balance cleared")

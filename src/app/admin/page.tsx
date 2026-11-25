@@ -120,6 +120,7 @@ export default async function OwnerHome() {
                   <p className="font-semibold">{t.full_name}</p>
                   <p className="text-[.93rem] text-muted">{t.subjects.map((s) => SUBJECTS[s]).join("، ")} · {t.qualification} · {t.years_experience} سنوات
                     {!t.teams_link && <span className="text-bad"> · بدون رابط Teams</span>}</p>
+                  <p className="text-[.9rem]">{t.cv_id ? <a href={`/api/documents/${t.cv_id}`} className="text-lav-700 underline">تحميل السيرة الذاتية</a> : <span className="text-bad">بدون سيرة ذاتية</span>}</p>
                 </div>
                 <div className="flex gap-2">
                   <Link href="/admin/teachers" className="btn btn-ghost btn-sm">الملف كامل</Link>

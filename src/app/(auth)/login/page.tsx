@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="mt-8 space-y-2 text-[.95rem] text-muted">
         <p>ما عندك حساب؟ <Link href={`/register${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-medium text-lav-700 underline">أنشئ حساب ولي أمر</Link></p>
         <p>معلمة؟ <Link href="/teachers/join" className="font-medium text-lav-700 underline">قدّمي طلب انضمام</Link></p>
-        <p>نسيت كلمة المرور؟ تواصل مع إدارة غِراس لإعادة تعيينها.</p>
+        <p>نسيت كلمة المرور؟ راسلنا <a href="https://wa.me/966565975402" target="_blank" rel="noopener noreferrer" className="font-medium text-lav-700 underline">واتساب</a> ونعيد تعيينها لك.</p>
       </div>
     </>
   );

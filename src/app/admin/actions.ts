@@ -78,7 +78,7 @@ export async function ignoreEventAction(fd: FormData) {
   const id = uuid.parse(fd.get("id"));
   await q(`UPDATE salla_events SET match_status = 'ignored', resolved_by = $2 WHERE id = $1 AND match_status = 'unmatched'`, [id, admin.id]);
   await audit("salla_event.ignore", "salla_event", id, admin.id);
-  revalidatePath("/admin/payments");
+  revalidatePath("/admin", "layout");
 }
 
 export async function setBookingStatusAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -137,7 +137,7 @@ export async function recordPayoutAction(fd: FormData) {
     if (po[0]) await postPayoutExpense(c, po[0].id); // accounting: teacher pay expense
     await audit("payout.record", "user", teacherId, admin.id, { month, sessions: n, amount: n * rate }, c);
   });
-  revalidatePath("/admin/payouts");
+  revalidatePath("/admin", "layout");
 }
 
 export async function updatePlanAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -355,6 +355,6 @@ export async function updateFeeSettingsAction(_: ActionState, fd: FormData): Pro
       [k, String(v), admin.id]);
   }
   await audit("settings.fees", "settings", null, admin.id, parsed.data);
-  revalidatePath("/admin/accounting");
+  revalidatePath("/admin", "layout");
   return { ok: "تم الحفظ. تنطبق على المدفوعات الجديدة من سلة." };
 }

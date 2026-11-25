@@ -5,13 +5,16 @@ import type { Subject } from "./domain";
 export type TeacherProfile = {
   user_id: string; full_name: string; email: string; status: string; bio: string; qualification: string;
   years_experience: number; subjects: Subject[]; min_grade: number; max_grade: number; teams_link: string | null;
-  accepting: boolean; approved_at: Date | null; created_at: Date;
+  accepting: boolean; approved_at: Date | null; created_at: Date; cv_id: string | null; cv_name: string | null;
 };
 
 const PROFILE = `
   SELECT p.user_id, u.full_name, u.email, u.status, p.bio, p.qualification, p.years_experience,
-         p.subjects::text[] AS subjects, p.min_grade, p.max_grade, p.teams_link, p.accepting, p.approved_at, u.created_at
-    FROM teacher_profiles p JOIN users u ON u.id = p.user_id`;
+         p.subjects::text[] AS subjects, p.min_grade, p.max_grade, p.teams_link, p.accepting, p.approved_at, u.created_at,
+         cv.id AS cv_id, cv.filename AS cv_name
+    FROM teacher_profiles p JOIN users u ON u.id = p.user_id
+    LEFT JOIN LATERAL (SELECT id, filename FROM teacher_documents d WHERE d.teacher_id = p.user_id AND d.kind = 'cv'
+                       ORDER BY d.created_at DESC LIMIT 1) cv ON true`;
 
 export function teacherProfile(id: string) {
   return one<TeacherProfile>(`${PROFILE} WHERE p.user_id = $1`, [id]);
@@ -38,8 +41,8 @@ export function monthlyEarnings(teacherId?: string) {
 
 export function payoutsFor(teacherId?: string) {
   return q<{ id: string; teacher_id: string; teacher_name: string; period_start: Date; period_end: Date;
-    sessions_count: number; rate_sar: string; amount_sar: string; paid_at: Date; note: string | null }>(
-    `SELECT po.*, u.full_name AS teacher_name FROM payouts po JOIN users u ON u.id = po.teacher_id
+    sessions_count: number; rate_sar: string; amount_sar: string; paid_at: Date; note: string | null; period_month: string }>(
+    `SELECT po.*, to_char(po.period_start, 'YYYY-MM') AS period_month, u.full_name AS teacher_name FROM payouts po JOIN users u ON u.id = po.teacher_id
       ${teacherId ? "WHERE po.teacher_id = $1" : ""} ORDER BY po.period_start DESC`,
     teacherId ? [teacherId] : [],
   );

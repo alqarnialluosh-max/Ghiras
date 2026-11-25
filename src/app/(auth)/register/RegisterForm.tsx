@@ -18,7 +18,7 @@ export function RegisterForm({ next }: { next?: string }) {
         hint="10 أحرف على الأقل، حروف وأرقام." />
       <div>
         <label className="flex items-start gap-3 text-[.95rem]">
-          <input type="checkbox" name="consent" className="mt-1.5 h-4 w-4 accent-lav-700" />
+          <input type="checkbox" name="consent" defaultChecked={state.values?.consent === "on"} className="mt-1.5 h-4 w-4 accent-lav-700" />
           <span>أوافق على <Link href="/privacy" className="text-lav-700 underline" target="_blank">سياسة الخصوصية</Link> و<Link href="/terms" className="text-lav-700 underline" target="_blank">الشروط</Link>.</span>
         </label>
         <FieldErrorText state={state} name="consent" />

@@ -21,7 +21,7 @@ export function TeacherForm() {
         <div className="flex flex-wrap gap-3">
           {Object.entries(SUBJECTS).map(([k, label]) => (
             <label key={k} className="flex cursor-pointer items-center gap-2 rounded-full border-[1.5px] border-line px-4 py-2 has-[:checked]:border-lav-400 has-[:checked]:bg-lav-100">
-              <input type="checkbox" name="subjects" value={k} className="h-4 w-4 accent-lav-700" />
+              <input type="checkbox" name="subjects" value={k} defaultChecked={(v.subjects ?? "").split(",").includes(k)} className="h-4 w-4 accent-lav-700" />
               {label}
             </label>
           ))}
@@ -57,13 +57,22 @@ export function TeacherForm() {
         <FieldErrorText state={state} name="bio" />
       </div>
 
+      <div className="field">
+        <label htmlFor="cv">السيرة الذاتية <span className="text-bad">*</span></label>
+        <input id="cv" name="cv" type="file" required accept=".pdf,.docx,.jpg,.jpeg,.png"
+          className="input file:ml-3 file:rounded-full file:border-0 file:bg-lav-100 file:px-4 file:py-1.5 file:text-lav-700"
+          aria-invalid={state.fieldErrors?.cv ? true : undefined} />
+        {state.fieldErrors?.cv ? <p className="text-sm text-bad">{state.fieldErrors.cv}</p>
+          : <p className="hint">PDF أو Word أو صورة، حتى 5 ميجابايت. تطلع عليها الإدارة فقط.{state.error ? " (أعيدي إرفاق الملف)" : ""}</p>}
+      </div>
+
       <Field name="teams_link" label="رابط اجتماع Teams الدائم (اختياري الآن)" dir="ltr" state={state}
         placeholder="https://teams.microsoft.com/l/meetup-join/..."
         hint="هذا الرابط يظهر للطالب في كل حصصك. تقدرين تضيفينه لاحقاً من صفحتك." />
 
       <div>
         <label className="flex items-start gap-3 text-[.95rem]">
-          <input type="checkbox" name="consent" className="mt-1.5 h-4 w-4 accent-lav-700" />
+          <input type="checkbox" name="consent" defaultChecked={v.consent === "on"} className="mt-1.5 h-4 w-4 accent-lav-700" />
           <span>أوافق على <Link href="/terms" className="text-lav-700 underline" target="_blank">شروط العمل</Link> و<Link href="/privacy" className="text-lav-700 underline" target="_blank">سياسة الخصوصية</Link>.</span>
         </label>
         <FieldErrorText state={state} name="consent" />

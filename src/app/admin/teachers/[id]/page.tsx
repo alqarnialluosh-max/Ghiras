@@ -26,14 +26,14 @@ export default async function TeacherDetail({ params }: { params: Promise<{ id: 
   ]);
   if (!p) notFound();
   const s = stats[0];
-  const paidMonths = new Set(payouts.map((x) => new Date(x.period_start).toISOString().slice(0, 7)));
+  const paidMonths = new Set(payouts.map((x) => x.period_month));
   const rate = env.teacherRateSar;
 
   return (
     <>
       <Link href="/admin/teachers/stats" className="mb-4 inline-block text-[.95rem] text-lav-700 underline">كل المعلمات</Link>
       <PageTitle title={p.full_name}
-        sub={<>{p.subjects.map((x) => SUBJECTS[x]).join("، ")} · {GRADES[p.min_grade]} — {GRADES[p.max_grade]} · <span dir="ltr">{p.email}</span>{phone?.phone_enc ? <> · <span dir="ltr">{displayPhone(decrypt(phone.phone_enc))}</span></> : null}</>}
+        sub={<>{p.cv_id ? <a href={`/api/documents/${p.cv_id}`} className="text-lav-700 underline">السيرة الذاتية</a> : <span className="text-bad">بدون سيرة ذاتية</span>} · {p.subjects.map((x) => SUBJECTS[x]).join("، ")} · {GRADES[p.min_grade]} — {GRADES[p.max_grade]} · <span dir="ltr">{p.email}</span>{phone?.phone_enc ? <> · <span dir="ltr">{displayPhone(decrypt(phone.phone_enc))}</span></> : null}</>}
         action={
           <form action={setTeacherStatusAction}>
             <input type="hidden" name="id" value={p.user_id} />

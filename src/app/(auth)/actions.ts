@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth";
 import { encrypt, phoneHash, normalizeSaudiPhone } from "@/lib/crypto";
 import { rateLimit } from "@/lib/rate-limit";
+import { checkCv, saveCv } from "@/lib/documents";
 import { ipHash } from "@/lib/request";
 import {
   fail, fieldErrorsOf, keepValues, loginSchema, parentRegisterSchema, safeNext, teacherRegisterSchema, type ActionState,
@@ -82,13 +83,15 @@ export async function registerParentAction(_: ActionState, fd: FormData): Promis
 }
 
 export async function registerTeacherAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const values = keepValues(fd);
+  const values = { ...keepValues(fd), subjects: fd.getAll("subjects").map(String).join(",") };
   const raw = { ...Object.fromEntries(fd), subjects: fd.getAll("subjects") };
   const parsed = teacherRegisterSchema.safeParse(raw);
   if (!parsed.success) return fail("راجعي الحقول المظللة.", fieldErrorsOf(parsed.error), values);
   if (!(await rateLimit(`register:ip:${await ipHash()}`, 8, 3600))) {
     return fail("تم إنشاء حسابات كثيرة من هذا الجهاز. حاولي لاحقاً.", undefined, values);
   }
+  const cv = await checkCv(fd.get("cv"));
+  if (!cv.ok) return fail("أرفقي السيرة الذاتية.", { cv: cv.error }, values);
   const d = parsed.data;
   const pw = await hashPassword(d.password);
   let userId: string;
@@ -104,6 +107,7 @@ export async function registerTeacherAction(_: ActionState, fd: FormData): Promi
          VALUES ($1,$2,$3,$4,$5::subject_code[],$6,$7,$8)`,
         [rows[0].id, d.bio, d.qualification, d.years_experience, d.subjects, d.min_grade, d.max_grade, d.teams_link || null],
       );
+      await saveCv(c, rows[0].id, cv, rows[0].id);
       return rows[0].id;
     });
   } catch (e) {

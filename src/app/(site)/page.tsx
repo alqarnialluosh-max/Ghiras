@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Seedling } from "@/components/Seedling";
+import { localPhone } from "@/components/ContactLinks";
 import { site } from "@/config/site";
 import { getPlans, planPrice, type Plan } from "@/lib/plans";
 import { TRACKS } from "@/lib/domain";
@@ -260,6 +261,23 @@ export default async function Home() {
           </div>
           <div className="md:text-left">
             <Link href="/teachers/join" className="btn btn-sky">قدّمي طلب الانضمام</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- Contact ---------- */}
+      <section aria-labelledby="contact-h" className="wrap mt-20">
+        <div className="grid gap-6 rounded-[26px] border-[1.5px] border-line px-7 py-10 md:grid-cols-[1fr_auto] md:items-center md:px-14">
+          <div>
+            <h2 id="contact-h" className="text-3xl">عندك سؤال قبل الاشتراك؟</h2>
+            <p className="mt-2 text-lg text-muted">كلمنا أو راسلنا واتساب، ونساعدك تختار الباقة والمسار المناسب لابنك.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {site.contact.phones.map((p, i) => (
+              <a key={p} href={`https://wa.me/${p}`} target="_blank" rel="noopener noreferrer" className={`btn ${i === 0 ? "btn-sky" : "btn-ghost"}`}>
+                واتساب <span dir="ltr">{localPhone(p)}</span>
+              </a>
+            ))}
           </div>
         </div>
       </section>

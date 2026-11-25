@@ -20,9 +20,11 @@ export const site = {
   },
 
   contact: {
-    whatsapp: process.env.NEXT_PUBLIC_WHATSAPP ?? "", // e.g. 9665XXXXXXXX
-    email: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "",
+    /** Displayed phone numbers (international format, no +). Each gets call + WhatsApp links. */
+    phones: ["966565975402", "966546229962"],
+    email: "Alialqarni329@gmail.com",
   },
+
 
   /** Ghiras store on Salla */
   sallaStore: process.env.NEXT_PUBLIC_SALLA_STORE ?? "https://salla.sa/ghirasedu",

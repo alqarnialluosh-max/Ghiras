@@ -3,7 +3,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
-import { one, q } from "@/lib/db";
+import { one, q, tx } from "@/lib/db";
+import { checkCv, saveCv } from "@/lib/documents";
 import { riyadhToUtc, addDaysKey } from "@/lib/time";
 import { fail, fieldErrorsOf, keepValues, teamsLink, type ActionState } from "@/lib/validation";
 
@@ -129,4 +130,16 @@ export async function updateSessionAction(_: ActionState, fd: FormData): Promise
   await audit("booking.teacher_update", "booking", d.id, user.id, { from: b.status, to: d.status });
   revalidatePath("/teacher", "layout");
   return { ok: "تم الحفظ، والتقرير يظهر لولي الأمر." };
+}
+
+export async function replaceCvAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireRole("teacher");
+  const cv = await checkCv(fd.get("cv"));
+  if (!cv.ok) return fail(cv.error);
+  await tx(async (c) => {
+    await saveCv(c, user.id, cv, user.id);
+    await audit("teacher.cv_upload", "user", user.id, user.id, { filename: cv.filename, size: cv.buf.length }, c);
+  });
+  revalidatePath("/teacher/profile");
+  return { ok: "تم رفع السيرة الذاتية. النسخة القديمة محفوظة في السجل." };
 }

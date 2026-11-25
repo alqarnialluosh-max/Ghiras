@@ -30,6 +30,7 @@ export default async function AdminTeachers() {
                   <p><span className="text-muted">البريد:</span> <span dir="ltr">{t.email}</span></p>
                   <p><span className="text-muted">المؤهل:</span> {t.qualification} · {t.years_experience} سنوات خبرة</p>
                   <p><span className="text-muted">الصفوف:</span> {GRADES[t.min_grade]} — {GRADES[t.max_grade]}</p>
+                  <p><span className="text-muted">السيرة الذاتية:</span> {t.cv_id ? <a href={`/api/documents/${t.cv_id}`} className="text-lav-700 underline">تحميل السيرة الذاتية</a> : <span className="text-bad">بدون سيرة ذاتية</span>}</p>
                   <p><span className="text-muted">Teams:</span> {t.teams_link ? <a href={t.teams_link} target="_blank" rel="noopener noreferrer" className="text-lav-700 underline">فتح الرابط</a> : <span className="text-bad">غير مضاف</span>}</p>
                   <p><span className="text-muted">سجلت:</span> {shortDate(t.created_at)}{t.approved_at ? ` · اعتمدت ${shortDate(t.approved_at)}` : ""}</p>
                   <p className="whitespace-pre-line rounded-xl bg-wash p-3">{t.bio}</p>

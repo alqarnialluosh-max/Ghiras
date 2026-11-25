@@ -9,7 +9,7 @@ export const metadata = { title: "أجور المعلمات" };
 export default async function AdminPayouts() {
   const rate = env.teacherRateSar;
   const [months, payouts] = await Promise.all([monthlyEarnings(), payoutsFor()]);
-  const paidKey = new Set(payouts.map((p) => `${p.teacher_id}:${new Date(p.period_start).toISOString().slice(0, 7)}`));
+  const paidKey = new Set(payouts.map((p) => `${p.teacher_id}:${p.period_month}`));
   return (
     <>
       <PageTitle title="أجور المعلمات" sub={`${rate} ريال عن كل حصة مكتملة أو غاب فيها الطالب. سجّل الدفعة بعد التحويل للمعلمة.`} />
