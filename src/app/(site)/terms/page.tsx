@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { site } from "@/config/site";
 import { localPhone } from "@/components/ContactLinks";
-import { MIN_LEAD_HOURS, SESSION_MINUTES } from "@/lib/domain";
+import { MIN_LEAD_HOURS, PARENT_RESPONSE_HOURS, SESSION_MINUTES, TEACHER_RESPONSE_HOURS } from "@/lib/domain";
 import { getPlans, planPrice, type Plan } from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export default async function Terms() {
   return (
     <article className="wrap max-w-3xl py-14 [&_h2]:mt-12 [&_h2]:scroll-mt-24 [&_h2]:text-2xl [&_h3]:mt-6 [&_h3]:text-lg [&_li]:mt-2 [&_p]:mt-3 [&_ul]:mt-3 [&_ul]:list-disc [&_ul]:pr-6">
       <h1 className="text-4xl">الشروط والأحكام</h1>
-      <p className="text-muted">آخر تحديث: 25 نوفمبر 2026 · تسري على أولياء الأمور والمعلمات وكل من يستخدم منصة غِراس.</p>
+      <p className="text-muted">آخر تحديث: 26 نوفمبر 2026 · تسري على أولياء الأمور والمعلمات وكل من يستخدم منصة غِراس.</p>
 
       <nav aria-label="محتويات الصفحة" className="mt-8 rounded-2xl bg-wash p-5">
         <p className="font-medium">المحتويات</p>
@@ -61,8 +61,11 @@ export default async function Terms() {
 
       <h2 id="booking">3. الحجز والحضور وإعادة الجدولة</h2>
       <ul>
-        <li>يتم الحجز من حساب ولي الأمر قبل موعد الحصة بـ{MIN_LEAD_HOURS} ساعات على الأقل، باختيار الوقت ثم المعلمة المتاحة فيه.</li>
-        <li>يظهر رابط Teams ووصف الحصة في صفحة الحصة لولي الأمر والمعلمة بعد الحجز مباشرة.</li>
+        <li>يُرسَل طلب الحجز من حساب ولي الأمر قبل موعد الحصة بـ{MIN_LEAD_HOURS} ساعة على الأقل، باختيار الوقت ثم المعلمة المتاحة فيه. والأيام المكتملة تظهر «محجوزة بالكامل» ولا يمكن طلبها.</li>
+        <li>تؤكد المعلمة الطلب خلال {TEACHER_RESPONSE_HOURS} ساعات. وإن اعتذرت أو لم ترد، يتحول الطلب تلقائياً لمعلمة أخرى متاحة في الموعد نفسه، وإلا نقترح أقرب موعد متاح.</li>
+        <li>يُعرض الموعد البديل على ولي الأمر بعد موافقة المعلمة، وله تأكيده خلال {PARENT_RESPONSE_HOURS} ساعة أو اختيار موعد آخر.</li>
+        <li>لا تُخصم الحصة من رصيد الاشتراك إلا بعد تأكيدها، وإذا لم يُحجز الطلب تبقى الحصة في الرصيد كاملة.</li>
+        <li>بعد التأكيد يظهر رابط Teams ووصف الحصة في صفحة الحصة لولي الأمر والمعلمة، وتصل رسالة تأكيد ثم تذكير بالبريد قبل الحصة.</li>
         <li>الحصص المؤكدة لا تُلغى من الموقع. لإعادة الجدولة يجب التواصل مع الإدارة قبل الموعد بـ{RULES.rescheduleNoticeHours} ساعة على الأقل، وتُعاد الجدولة حسب توفر المعلمات.</li>
         <li>إذا لم يدخل الطالب خلال {RULES.lateMinutes} دقيقة من بداية الحصة تُعتبر «غياب طالب» وتُحتسب من الرصيد.</li>
         <li>إذا غابت المعلمة أو تأخرت أكثر من {RULES.lateMinutes} دقيقة تُعتبر «غياب معلمة»، ولا تُحتسب من الرصيد، ويمكن حجز حصة بديلة.</li>
@@ -110,7 +113,8 @@ export default async function Terms() {
 
       <h3>الالتزامات</h3>
       <ul>
-        <li>الدخول للحصة في موعدها عبر رابط Teams المسجّل في المنصة، وأن يكون الرابط صالحاً ومحدّثاً.</li>
+        <li>الرد على طلبات الحجز بالقبول أو الاعتذار خلال {TEACHER_RESPONSE_HOURS} ساعات، والاعتذار يكون بسبب مكتوب تراجعه الإدارة. وتكرار الاعتذار أو عدم الرد يستوجب المراجعة.</li>
+        <li>الدخول للحصة في موعدها عبر رابط Teams الظاهر في صفحة الحصة.</li>
         <li>تحديد حضور الطالب في المنصة بعد كل حصة.</li>
         <li>الالتزام بالمسار المختار (تقوية، متابعة، تحضير اختبارات) وبالمنهج السعودي المعتمد.</li>
         <li>عند الاعتذار عن حصة محجوزة يجب إبلاغ الإدارة قبل موعدها بـ{RULES.teacherCancelNoticeHours} ساعة على الأقل لإعادة جدولتها.</li>
