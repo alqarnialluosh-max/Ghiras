@@ -2,7 +2,10 @@ import Link from "next/link";
 import { Seedling } from "@/components/Seedling";
 import { localPhone } from "@/components/ContactLinks";
 import { site } from "@/config/site";
-import { getPlans, planPrice, type Plan } from "@/lib/plans";
+import { getPlans, planPrice, planSessionsLine, type Plan } from "@/lib/plans";
+import { SessionReportCard } from "@/components/SessionReportCard";
+import { SAMPLE_REPORT } from "@/lib/report";
+import { POLICY } from "@/lib/policy";
 import { TRACKS } from "@/lib/domain";
 
 export const dynamic = "force-dynamic";
@@ -11,21 +14,21 @@ const PLAN_POINTS: Record<string, string[]> = {
   ALL_SUBJECTS: [
     "حصص فردية لابنك وحده، لا مجموعات",
     "الرياضيات ولغتي والعلوم، كل مادة مع معلمتها المختصة",
-    "حصتان أسبوعياً في الوقت الذي يناسبكم",
+    "الحصة الأولى المجانية لتشخيص المستوى ووضع خطة الأسابيع القادمة",
     "متابعة للمنهج وتهيئة للاختبارات",
-    "ملاحظات المعلمة عن مستوى الطالب",
+    "تقرير بعد الحصة: ما شُرح، ونقاط القوة، والواجب",
   ],
   SINGLE_SUBJECT: [
     "حصص فردية لابنك وحده، لا مجموعات",
-    "مادة واحدة تختارونها",
-    "حصتان أسبوعياً في الوقت الذي يناسبكم",
+    "مادة واحدة تختارونها، مع معلمتها المختصة",
+    "في الوقت الذي يناسبكم",
     "متابعة للمنهج وتهيئة للاختبارات",
-    "ملاحظات المعلمة عن مستوى الطالب",
+    "تقرير بعد الحصة: ما شُرح، ونقاط القوة، والواجب",
   ],
   SINGLE_SESSION: [
     "حصة فردية لابنك، ساعة كاملة في أي مادة",
     "استعداد لاختبار، أو حل واجبات، أو شرح درس كامل",
-    "تُحجز خلال 14 يوماً من الدفع",
+    "تختارون المعلمة والوقت بأنفسكم",
   ],
 };
 
@@ -92,7 +95,7 @@ function PricingCard({ plan, featured }: { plan: Plan; featured: boolean }) {
     >
       <h3 className={`text-2xl ${featured ? "text-white" : ""}`}>{plan.name_ar}</h3>
       <p className={`mt-1 text-[.95rem] ${featured ? "text-lav-100" : "text-muted"}`}>
-        {plan.code === "SINGLE_SESSION" ? "للحاجة السريعة" : `${total} حصص خلال ${plan.duration_days} يوماً`}
+        {planSessionsLine(plan)}
       </p>
       <p className="mt-6 flex items-baseline gap-2">
         <span className="font-display text-5xl">{planPrice(plan)}</span>
@@ -100,7 +103,7 @@ function PricingCard({ plan, featured }: { plan: Plan; featured: boolean }) {
       </p>
       {plan.bonus_sessions > 0 && (
         <p className="mt-3 inline-block rounded-full bg-sky-300 px-3 py-1 text-sm font-medium text-ink">
-          الحصة الأولى مجاناً — المجموع {total} حصص
+          {total} حصص بسعر {plan.sessions_count}
         </p>
       )}
       <ul className={`mt-6 space-y-3 text-[.97rem] ${featured ? "text-white" : ""}`}>
@@ -121,16 +124,23 @@ function PricingCard({ plan, featured }: { plan: Plan; featured: boolean }) {
   );
 }
 
-const FAQ = [
-  { q: "هل الحصص فردية أم جماعية؟", a: "جميع حصص غِراس فردية: معلمة واحدة مع ابنك أو ابنتك فقط طوال الساعة، دون أي طلاب آخرين، فيكون الشرح على قدر مستواه وبالسرعة التي تناسبه." },
-  { q: "كيف تُقدَّم الحصة؟", a: "تُقدَّم جميع الحصص عبر Microsoft Teams. بعد الحجز تظهر لكم صفحة الحصة وفيها وصفها ورابط Teams جاهز، ويُتاح زر الدخول قبل الموعد بربع ساعة. لا تحتاجون إلى حساب في Teams، إذ يكفي المتصفح أو التطبيق." },
-  { q: "هل يمكنني اختيار المعلمة؟", a: "نعم. تختارون اليوم والوقت أولاً، ثم تظهر لكم المعلمات المتاحات في ذلك الوقت للمادة المطلوبة، فتختارون من تناسبكم. ولا يسمح النظام بأي تعارض بين الحصص." },
-  { q: "كيف أدفع؟", a: "يتم الدفع عبر متجر غِراس على منصة سلة وبطرق الدفع المتاحة فيها، ويُفعَّل اشتراككم تلقائياً بعد الدفع. يكفي أن تستخدموا البريد أو رقم الجوال نفسه المسجل في حسابكم في غِراس." },
-  { q: "كيف تتوزع حصص باقة كل المواد؟", a: "تحصلون على حصتين أسبوعياً توزعونها على الرياضيات ولغتي والعلوم حسب حاجتكم، وتُدرّس كل مادة معلمة متخصصة فيها. والحصة الأولى مجانية إضافةً إلى الحصص الثماني." },
-  { q: "إذا طرأ ظرف، هل يمكنني إلغاء الحصة؟", a: "لا تُلغى الحصص المحجوزة من الموقع حفاظاً على وقت المعلمات وسجل الطالب. وإذا طرأ ظرف، تواصلوا معنا قبل الموعد لتعيد الإدارة جدولة الحصة." },
-  { q: "ماذا لو تغيبت المعلمة؟", a: "لا تُحتسب الحصة من رصيدكم إطلاقاً، ويمكنكم حجز حصة بديلة مباشرة." },
-  { q: "هل بيانات أبنائي آمنة؟", a: "نعم. الاتصال مشفّر، وأرقام الجوال والملاحظات الخاصة تُحفظ مشفّرة، وكلمات المرور لا تُخزَّن أبداً بشكلها الأصلي. وسجل الطالب وحصصه محفوظ ولا يُحذف." },
-];
+function faqFor(plans: Plan[]) {
+  const all = plans.find((p) => p.code === "ALL_SUBJECTS");
+  return [
+    { q: "هل الحصص فردية أم جماعية؟", a: "جميع حصص غِراس فردية: معلمة واحدة مع ابنك أو ابنتك فقط طوال الساعة، دون أي طلاب آخرين، فيكون الشرح على قدر مستواه وبالسرعة التي تناسبه." },
+    { q: "هل الحصص للبنين والبنات؟", a: "نعم، للبنين والبنات من الصف الأول الابتدائي إلى الثالث المتوسط. وجميع من يدرّسن في غِراس معلمات، والحصص أونلاين من المنزل." },
+    ...(all ? [{ q: "كم حصة في باقة كل المواد، وكيف تتوزع؟", a: `${planSessionsLine(all)}. توزعون الحصص على الرياضيات ولغتي والعلوم حسب حاجة ابنكم، فقد تكون أغلبها في مادة واحدة إن كانت هي الأصعب، وتدرّس كل مادة معلمة متخصصة فيها.` }] : []),
+    { q: "ماذا يحدث في الحصة الأولى المجانية؟", a: "هي حصة تعرّف وتشخيص: تقيس المعلمة مستوى ابنك في المادة، وتكتب في تقرير الحصة نقاط قوته وما يحتاج إليه، وخطة مقترحة للأسابيع القادمة." },
+    { q: "ماذا يصلني بعد الحصة؟", a: "تقرير قصير في صفحة الحصة: ما شُرح، ومستوى الاستيعاب، ونقاط القوة، وما يحتاج إلى دعم، والواجب، وخطة الحصة القادمة." },
+    { q: "هل يمكنني اختيار المعلمة أو تغييرها؟", a: "نعم. تختارون اليوم والوقت أولاً، ثم تظهر لكم المعلمات المتاحات في ذلك الوقت للمادة المطلوبة. " + POLICY.switchTeacher },
+    { q: "إذا طرأ ظرف، هل يمكنني تأجيل الحصة؟", a: POLICY.reschedule + " ولا تُلغى الحصص المحجوزة من الموقع حفاظاً على وقت المعلمات وسجل الطالب." },
+    { q: "ماذا لو تغيبت المعلمة؟", a: POLICY.teacherAbsent },
+    { q: "كيف تُقدَّم الحصة؟", a: "عبر Microsoft Teams. بعد الحجز تظهر لكم صفحة الحصة وفيها وصفها ورابط Teams جاهز، ويُتاح زر الدخول قبل الموعد بربع ساعة. لا تحتاجون إلى حساب في Teams، إذ يكفي المتصفح أو التطبيق." },
+    { q: "كيف أدفع؟", a: "يتم الدفع عبر متجر غِراس على منصة سلة وبطرق الدفع المتاحة فيها، ويُفعَّل اشتراككم تلقائياً بعد الدفع. يكفي أن تستخدموا البريد أو رقم الجوال نفسه المسجل في حسابكم في غِراس." },
+    { q: "كيف أتواصل معكم؟", a: "عبر واتساب على الرقمين الظاهرين أسفل الصفحة، أو بالبريد الإلكتروني. ونرد على استفساراتكم وطلبات إعادة الجدولة في أقرب وقت." },
+    { q: "هل بيانات أبنائي آمنة؟", a: "نعم. الاتصال مشفّر، وأرقام الجوال والملاحظات الخاصة تُحفظ مشفّرة، وكلمات المرور لا تُخزَّن أبداً بشكلها الأصلي. وسجل الطالب وحصصه محفوظ ولا يُحذف." },
+  ];
+}
 
 export default async function Home() {
   const plans = await getPlans().catch(() => [] as Plan[]);
@@ -231,7 +241,7 @@ export default async function Home() {
                 ["أنشئ حسابك وأضف أبناءك", "اسم الطالب وصفه الدراسي، ويمكنك إضافة أكثر من ابن في الحساب نفسه."],
                 ["اختر الباقة وادفع عبر سلة", "ننقلك إلى متجرنا في سلة، ويُفعَّل الاشتراك تلقائياً بعد الدفع."],
                 ["اختر اليوم والوقت، ثم المعلمة", "تظهر لك الأوقات المتاحة فعلاً، ثم المعلمات المتاحات في ذلك الوقت."],
-                ["ادخل الحصة من رابط Teams", "تجد في صفحة الحصة وصفها ورابطها، وبعدها ملاحظات المعلمة."],
+                ["ادخل الحصة من رابط Teams", "تجد في صفحة الحصة وصفها ورابطها، وبعد الحصة يصلك تقرير المعلمة في الصفحة نفسها."],
               ].map(([t, d], i) => (
                 <li key={t} className="flex gap-5">
                   <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-lav-100 font-display text-lg text-lav-700">
@@ -249,10 +259,70 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* ---------- After the session: sample report + free first session ---------- */}
+      <section aria-labelledby="report-h" className="wrap py-20">
+        <div className="grid gap-12 md:grid-cols-[.85fr_1.15fr] md:items-center">
+          <div>
+            <h2 id="report-h" className="text-3xl md:text-4xl">تعرف ماذا تعلّم ابنك في كل حصة</h2>
+            <p className="mt-4 text-muted">
+              بعد الحصة تكتب المعلمة تقريراً قصيراً يصلك في صفحة الحصة: ما شرحته، ومستوى الاستيعاب، وما يحتاج إلى دعم، والواجب، وخطة الحصة القادمة.
+            </p>
+            <div className="mt-8 rounded-2xl border-r-4 border-sky-300 bg-sky-50 p-5">
+              <h3 className="text-lg">الحصة الأولى مجانية، وتبدأ بالتشخيص</h3>
+              <p className="mt-1 text-[.97rem] text-muted">
+                تقيس المعلمة مستوى ابنك في الحصة الأولى، وتكتب في تقريرها خطة مقترحة للأسابيع القادمة، فتعرفون من البداية إلى أين تتجه الحصص.
+              </p>
+            </div>
+          </div>
+          <div>
+            <SessionReportCard report={SAMPLE_REPORT} title="نموذج لتقرير حصة" meta="رياضيات · الصف الخامس" />
+            <p className="mt-3 text-sm text-muted">مثال توضيحي، ويختلف التقرير حسب الحصة والطالب.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- How teachers are chosen ---------- */}
+      <section aria-labelledby="choose-h" className="bg-wash py-20">
+        <div className="wrap">
+          <h2 id="choose-h" className="max-w-xl text-3xl md:text-4xl">كيف نختار معلماتنا</h2>
+          <p className="mt-3 max-w-xl text-muted">لا تظهر أي معلمة لأولياء الأمور قبل أن تمر بهذه المراحل.</p>
+          <ol className="mt-10 grid gap-6 md:grid-cols-4">
+            {[
+              ["مراجعة السيرة الذاتية", "نتحقق من المؤهل والخبرة في المادة والمرحلة الدراسية."],
+              ["مقابلة مع المشرفة", `تجري ${s.name} مقابلة تتعرف فيها على أسلوب المعلمة في الشرح والتعامل مع الطلاب.`],
+              ["تفعيل بعد الموافقة فقط", "لا يُفتح الحجز مع المعلمة إلا بعد اعتمادها من الإدارة."],
+              ["متابعة مستمرة", "نتابع حضور المعلمات وتقارير حصصهن وملاحظات الأهل باستمرار."],
+            ].map(([t, d], i) => (
+              <li key={t} className="rounded-2xl bg-white p-6">
+                <span className="font-display text-2xl text-lav-600">{i + 1}</span>
+                <h3 className="mt-2 text-lg">{t}</h3>
+                <p className="mt-1 text-[.95rem] text-muted">{d}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
       {/* ---------- Pricing ---------- */}
       <section id="pricing" aria-labelledby="pricing-h" className="wrap scroll-mt-24 py-20">
         <h2 id="pricing-h" className="text-3xl md:text-4xl">الباقات</h2>
         <p className="mt-3 max-w-xl text-muted">الأسعار بالريال السعودي، والدفع عبر متجرنا في سلة.</p>
+
+        <div className="mt-10 rounded-2xl border border-line p-6">
+          <h3 className="text-xl">أي باقة تناسب ابنك؟</h3>
+          <dl className="mt-4 grid gap-5 md:grid-cols-3">
+            {[
+              ["يحتاج دعماً في أكثر من مادة", "باقة كل المواد", "توزعون الحصص على المواد الثلاث حسب الحاجة، ومعها الحصة الأولى مجاناً."],
+              ["مادة واحدة هي التحدي", "باقة مادة واحدة", "تركيز كامل على مادة واحدة طوال الشهر مع معلمتها المختصة."],
+              ["اختبار قريب أو درس صعب", "حصة واحدة", "ساعة واحدة دون اشتراك، تحجزونها متى احتجتم."],
+            ].map(([when, plan, why]) => (
+              <div key={when}>
+                <dt className="text-muted">{when}</dt>
+                <dd className="mt-1"><span className="font-semibold text-lav-700">{plan}</span> <span className="text-[.95rem] text-muted">— {why}</span></dd>
+              </div>
+            ))}
+          </dl>
+        </div>
         {plans.length ? (
           <div className="mt-12 grid items-start gap-6 md:grid-cols-3 md:gap-5">
             {plans.map((p) => <PricingCard key={p.code} plan={p} featured={p.code === "ALL_SUBJECTS"} />)}
@@ -260,6 +330,12 @@ export default async function Home() {
         ) : (
           <p className="alert alert-info mt-8">يجري تحديث الباقات الآن، يُرجى العودة بعد قليل.</p>
         )}
+
+        <div className="mt-14 grid gap-6 border-t border-line pt-10 md:grid-cols-3">
+          <div><h3 className="text-lg">تأجيل الحصة</h3><p className="mt-1 text-[.95rem] text-muted">{POLICY.reschedule}</p></div>
+          <div><h3 className="text-lg">تغيير المعلمة</h3><p className="mt-1 text-[.95rem] text-muted">{POLICY.switchTeacher}</p></div>
+          <div><h3 className="text-lg">غياب المعلمة</h3><p className="mt-1 text-[.95rem] text-muted">{POLICY.teacherAbsent}</p></div>
+        </div>
       </section>
 
       {/* ---------- Teachers ---------- */}
@@ -299,7 +375,7 @@ export default async function Home() {
         <div className="grid gap-10 md:grid-cols-[.7fr_1.3fr]">
           <h2 id="faq-h" className="text-3xl md:text-4xl">الأسئلة الشائعة</h2>
           <div className="divide-y divide-line border-y border-line">
-            {FAQ.map((f) => (
+            {faqFor(plans).map((f) => (
               <details key={f.q} className="group py-5">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-medium">
                   {f.q}

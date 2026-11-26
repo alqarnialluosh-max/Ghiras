@@ -89,7 +89,11 @@ async def main():
         await a.goto(f"{BASE}/admin/teams")
         await expect(a.get_by_text("تلقائي", exact=True)).to_be_visible()
         await a.click("button:has-text('أنشئ الروابط الناقصة الآن')")
-        await expect(a.get_by_role("status")).to_contain_text("أُنشئ رابط مستقل لـ 1")
+        await expect(a.get_by_role("status")).to_contain_text("أُنشئ رابط مستقل لـ")
+        # other suites may leave upcoming sessions too; what matters is that every attempt succeeded
+        import re
+        tried, made = map(int, re.findall(r"\d+", await a.get_by_role("status").inner_text())[:2])
+        assert tried == made >= 1, (tried, made)
         assert sql(f"SELECT teams_source FROM bookings WHERE id='{bid2}'") == "auto"
         await pg.goto(f"{BASE}/parent/sessions/{bid2}")
         await expect(pg.get_by_text("يجري تجهيز رابط Teams الخاص بهذه الحصة")).to_have_count(0)

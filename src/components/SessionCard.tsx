@@ -38,6 +38,7 @@ export function SessionCard({ b, viewer }: { b: BookingView; viewer: "parent" | 
           <span className="chip chip-sky">{SUBJECTS[b.subject]}</span>
           <span className="chip">{TRACKS[b.track].short}</span>
           {b.status !== "scheduled" && <StatusChip status={b.status} />}
+          {b.report && viewer !== "teacher" && <span className="chip chip-sky">التقرير جاهز</span>}
         </div>
         <p className="mt-2 font-medium">{dateLabel(b.starts_at)} — {timeLabel(b.starts_at)}</p>
         <p className="text-[.95rem] text-muted">{who}</p>

@@ -2,6 +2,7 @@ import { GRADES, SUBJECTS, TRACKS, JOIN_OPENS_MINUTES } from "@/lib/domain";
 import type { BookingView } from "@/lib/queries";
 import { dateLabel, timeLabel } from "@/lib/time";
 import { StatusChip, TeamsButton, joinState } from "./SessionCard";
+import { SessionReportCard } from "./SessionReportCard";
 
 export function SessionDetail({ b, viewer, studentNotes, children }: {
   b: BookingView; viewer: "parent" | "teacher" | "admin"; studentNotes?: string | null; children?: React.ReactNode;
@@ -37,9 +38,13 @@ export function SessionDetail({ b, viewer, studentNotes, children }: {
           </section>
         )}
 
+        {b.report && viewer !== "teacher" && (
+          <section className="mt-6"><SessionReportCard report={b.report} meta={`من ${b.teacher_name}`} /></section>
+        )}
+
         {b.teacher_notes && (
           <section className="mt-6">
-            <h2 className="text-lg font-semibold">ملاحظات المعلمة بعد الحصة</h2>
+            <h2 className="text-lg font-semibold">{b.report ? "ملاحظة إضافية من المعلمة" : "ملاحظات المعلمة بعد الحصة"}</h2>
             <p className="mt-2 whitespace-pre-line rounded-xl border-r-4 border-sky-300 bg-sky-50 p-4">{b.teacher_notes}</p>
           </section>
         )}

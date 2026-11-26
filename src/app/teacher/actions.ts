@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { cleanReport, reportSchema } from "@/lib/report";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
 import { one, q, tx } from "@/lib/db";
@@ -113,7 +114,7 @@ const sessionSchema = z.object({
   id: z.string().uuid(),
   status: z.enum(["scheduled", "completed", "student_absent"]),
   teacher_notes: z.string().trim().max(2000).default(""),
-});
+}).merge(reportSchema);
 
 export async function updateSessionAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const user = await requireRole("teacher");
@@ -125,11 +126,15 @@ export async function updateSessionAction(_: ActionState, fd: FormData): Promise
   if (!b) return fail("الحصة غير موجودة.");
   if (!["scheduled", "completed", "student_absent"].includes(b.status)) return fail("حالة هذه الحصة تديرها الإدارة.");
   if (d.status !== "scheduled" && b.starts_at.getTime() > Date.now()) return fail("يمكنك تحديد الحضور بعد بداية الحصة.");
-  await q(`UPDATE bookings SET status = $3, teacher_notes = $4 WHERE id = $1 AND teacher_id = $2`,
-    [d.id, user.id, d.status, d.teacher_notes || null]);
-  await audit("booking.teacher_update", "booking", d.id, user.id, { from: b.status, to: d.status });
+  // a report only makes sense for a session that happened
+  const report = d.status === "completed" ? cleanReport(d) : null;
+  await q(`UPDATE bookings SET status = $3, teacher_notes = $4, report = $5 WHERE id = $1 AND teacher_id = $2`,
+    [d.id, user.id, d.status, d.teacher_notes || null, report]);
+  // the full report goes to the append-only audit log, so earlier versions are never lost
+  await audit("booking.teacher_update", "booking", d.id, user.id, { from: b.status, to: d.status, report });
   revalidatePath("/teacher", "layout");
-  return { ok: "تم الحفظ، وتظهر ملاحظاتك لولي الأمر." };
+  revalidatePath("/parent", "layout");
+  return { ok: report ? "تم الحفظ، ووصل التقرير لولي الأمر." : "تم الحفظ، وتظهر ملاحظاتك لولي الأمر." };
 }
 
 export async function replaceCvAction(_: ActionState, fd: FormData): Promise<ActionState> {

@@ -1,10 +1,12 @@
 "use client";
+import Link from "next/link";
+import { POLICY } from "@/lib/policy";
 import { useActionState, useState } from "react";
 import { subscribeAction } from "../actions";
 import { FieldErrorText, FormMessage, SubmitButton } from "@/components/forms";
 import { GRADES, SUBJECTS, TRACKS } from "@/lib/domain";
 
-type P = { code: string; name_ar: string; price: string; all_subjects: boolean; sessions: number; bonus: number; hasLink: boolean };
+type P = { code: string; name_ar: string; price: string; all_subjects: boolean; sessions: number; bonus: number; hasLink: boolean; line: string };
 
 export function SubscribeForm({ plans, students, initialPlan }: {
   plans: P[]; students: { id: string; full_name: string; grade: number }[]; initialPlan?: string;
@@ -25,7 +27,7 @@ export function SubscribeForm({ plans, students, initialPlan }: {
               <input type="radio" name="plan" value={p.code} className="sr-only" checked={plan === p.code} onChange={() => setPlan(p.code)} />
               <span className="block font-semibold">{p.name_ar}</span>
               <span className="mt-1 block text-[.92rem] text-muted">
-                {p.sessions + p.bonus} {p.sessions + p.bonus === 1 ? "حصة" : "حصص"}{p.bonus > 0 ? " (الأولى مجاناً)" : ""}
+                {p.line}
               </span>
               <span className="mt-3 block"><span className="font-display text-3xl text-lav-700">{p.price}</span> ريال</span>
             </label>
@@ -66,6 +68,16 @@ export function SubscribeForm({ plans, students, initialPlan }: {
         </div>
         <FieldErrorText state={state} name="track" />
       </fieldset>
+
+      <section aria-labelledby="before-pay" className="rounded-2xl border border-line p-5 text-[.95rem]">
+        <h2 id="before-pay" className="text-lg font-semibold">قبل الدفع</h2>
+        <ul className="mt-2 list-disc space-y-1 pr-5 text-muted">
+          <li>{POLICY.reschedule}</li>
+          <li>{POLICY.switchTeacher}</li>
+          <li>{POLICY.teacherAbsent}</li>
+        </ul>
+        <p className="mt-2"><Link href="/terms" className="text-lav-700 underline">الشروط والأحكام كاملة</Link></p>
+      </section>
 
       <div className="rounded-2xl bg-wash p-5 text-[.95rem]">
         بعد الضغط سننقلك إلى متجر غِراس في <strong>سلة</strong> لإتمام الدفع. استخدم <strong>البريد أو رقم الجوال</strong> نفسه المسجل في حسابك، وسيُفعَّل الاشتراك تلقائياً.

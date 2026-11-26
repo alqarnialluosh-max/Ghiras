@@ -1,16 +1,17 @@
+import type { SessionReport } from "./report";
 import "server-only";
 import { one, q } from "./db";
 import type { Subject, Track } from "./domain";
 
 export type BookingView = {
   id: string; subject: Subject; track: Track; starts_at: Date; ends_at: Date; status: string;
-  description: string; teams_link: string; teams_source: string; teacher_notes: string | null;
+  description: string; teams_link: string; teams_source: string; teacher_notes: string | null; report: SessionReport | null;
   teacher_id: string; teacher_name: string; student_id: string; student_name: string; grade: number;
   parent_id: string; parent_name: string; subscription_id: string; reference: string; replaced_by: string | null;
 };
 
 const BASE = `
-  SELECT b.id, b.subject, b.track, b.starts_at, b.ends_at, b.status, b.description, b.teams_link, b.teams_source, b.teacher_notes,
+  SELECT b.id, b.subject, b.track, b.starts_at, b.ends_at, b.status, b.description, b.teams_link, b.teams_source, b.teacher_notes, b.report,
          b.teacher_id, t.full_name AS teacher_name, b.student_id, st.full_name AS student_name, st.grade,
          b.parent_id, p.full_name AS parent_name, b.subscription_id, s.reference, b.replaced_by
     FROM bookings b

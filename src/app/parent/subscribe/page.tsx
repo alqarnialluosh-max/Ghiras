@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageTitle } from "@/components/DashShell";
 import { requireRole } from "@/lib/auth";
-import { getPlans, planPrice } from "@/lib/plans";
+import { getPlans, planPrice, planSessionsLine } from "@/lib/plans";
 import { studentsOf } from "@/lib/queries";
 import { SubscribeForm } from "./SubscribeForm";
 
@@ -33,7 +33,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
         students={students.map(({ id, full_name, grade }) => ({ id, full_name, grade }))}
         plans={plans.map((p) => ({
           code: p.code, name_ar: p.name_ar, price: planPrice(p), all_subjects: p.all_subjects,
-          sessions: p.sessions_count, bonus: p.bonus_sessions, hasLink: !!p.salla_url,
+          sessions: p.sessions_count, bonus: p.bonus_sessions, hasLink: !!p.salla_url, line: planSessionsLine(p),
         }))}
       />
     </>

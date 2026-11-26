@@ -109,6 +109,15 @@ async def main():
         pctx = await b.new_context(viewport={"width": 1280, "height": 900})
         await pctx.route("https://example-salla.test/**", lambda r: r.fulfill(status=200, body="<h1>Salla checkout (mock)</h1>", content_type="text/html"))
         pg = await pctx.new_page()
+        await pg.goto(f"{BASE}/")
+        line = "8 حصص + الحصة الأولى مجاناً = 9 حصص"
+        await expect(pg.locator("#pricing-h").locator("xpath=ancestor::section[1]")).to_contain_text(line)
+        faq = pg.locator("details", has_text="كم حصة في باقة كل المواد")
+        await faq.locator("summary").click()
+        await expect(faq).to_contain_text(line)
+        await expect(pg.get_by_text("نموذج لتقرير حصة")).to_be_visible()
+        await expect(pg.get_by_text("كيف نختار معلماتنا")).to_be_visible()
+        step("landing: card and FAQ agree on 8+1=9; sample report + teacher selection shown")
         await pg.goto(f"{BASE}/register")
         await pg.fill("#f-full_name", "محمد القحطاني")
         await pg.fill("#f-email", P_EMAIL)
@@ -233,6 +242,24 @@ async def main():
                     SELECT subscription_id,parent_id,student_id,teacher_id,subject,track, now() - interval '3 hours', now() - interval '2 hours', teams_link, created_by, 'completed'
                     FROM bookings WHERE id='{bid}'""")
         assert r.returncode == 0, r.stderr
+        past = sql(f"SELECT id FROM bookings WHERE teacher_id='{tid}' AND starts_at < now() ORDER BY created_at DESC LIMIT 1").stdout.strip()
+
+        # Teacher writes the structured report; parent sees it
+        await t.goto(f"{BASE}/teacher/sessions/{past}")
+        await t.click("label:has-text('فهم جيد ويحتاج تثبيتاً')")
+        await t.fill("#r-covered", "جمع الكسور مختلفة المقامات")
+        await t.fill("#r-strengths", "سريعة في توحيد المقامات")
+        await t.fill("#r-homework", "خمس مسائل من صفحة 42")
+        await t.click("button:has-text('احفظي')")
+        await expect(t.get_by_text("ووصل التقرير لولي الأمر")).to_be_visible()
+        assert sql(f"SELECT report->>'homework' FROM bookings WHERE id='{past}'").stdout.strip() == "خمس مسائل من صفحة 42"
+        assert sql(f"SELECT report ? 'struggles' FROM bookings WHERE id='{past}'").stdout.strip() == "f"  # empty fields not stored
+        await pg.goto(f"{BASE}/parent/sessions/{past}")
+        await expect(pg.get_by_text("تقرير الحصة")).to_be_visible()
+        await expect(pg.get_by_text("سريعة في توحيد المقامات")).to_be_visible()
+        await expect(pg.get_by_text("فهم جيد ويحتاج تثبيتاً")).to_be_visible()
+        await pg.screenshot(path="/tmp/s_parent_report.png", full_page=True)
+        step("teacher's structured report reaches the parent (empty fields skipped)")
 
         await a.goto(f"{BASE}/admin")
         await expect(a.get_by_text("لوحة المالك").first).to_be_visible()
