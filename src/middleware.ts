@@ -4,6 +4,14 @@ const PROTECTED = ["/parent", "/teacher", "/admin"];
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
+
+  // One public address: pages opened on any other host (e.g. the Railway URL) move to CANONICAL_HOST.
+  // API routes are left alone so webhooks (Salla) keep working on whatever URL they were registered with.
+  const canonical = process.env.CANONICAL_HOST;
+  const host = (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "").split(":")[0].toLowerCase();
+  if (canonical && host && host !== canonical && !host.startsWith("localhost") && !pathname.startsWith("/api/")) {
+    return NextResponse.redirect(`https://${canonical}${pathname}${search}`, 308);
+  }
   const isProd = process.env.NODE_ENV === "production";
   const cookieName = isProd ? "__Host-ghiras" : "ghiras";
 

@@ -47,7 +47,7 @@ export default async function EmailsPage() {
             </p>
             <p className="text-muted">
               رسائل أولياء الأمور والمعلمات (تأكيد البريد، الحجز، التذكير، التقرير، استعادة كلمة المرور) تحتاج دوميناً موثّقاً في Resend.
-              بعد توثيقه أضف <code dir="ltr">EMAIL_FROM</code>، مثل <span dir="ltr">غِراس &lt;no-reply@ghiras.sa&gt;</span>، فتعمل كلها تلقائياً.
+              بعد توثيقه أضف <code dir="ltr">EMAIL_FROM</code>، مثل <span dir="ltr">غِراس &lt;no-reply@ghirasedu.site&gt;</span>، فتعمل كلها تلقائياً.
             </p>
           </div>
         )}
@@ -57,7 +57,7 @@ export default async function EmailsPage() {
             <p>لتفعيل البريد أضف في Railway Variables:</p>
             <ul className="list-disc space-y-1 pr-5 text-muted">
               <li><code dir="ltr">RESEND_API_KEY</code>: المفتاح من لوحة Resend.</li>
-              <li><code dir="ltr">EMAIL_FROM</code>: عنوان الإرسال على دومينك الموثّق، مثل <span dir="ltr">غِراس &lt;no-reply@ghiras.sa&gt;</span>.</li>
+              <li><code dir="ltr">EMAIL_FROM</code>: عنوان الإرسال على دومينك الموثّق، مثل <span dir="ltr">غِراس &lt;no-reply@ghirasedu.site&gt;</span>.</li>
             </ul>
             <p className="text-muted">قبل التفعيل لا يُطلب تأكيد البريد من أحد، وتُسجَّل الرسائل هنا على أنها لم تُرسل.</p>
           </div>

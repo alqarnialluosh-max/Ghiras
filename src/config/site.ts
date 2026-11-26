@@ -6,7 +6,7 @@ export const site = {
   tagline: "حصص خصوصية فردية أونلاين للصفوف من الأول الابتدائي إلى الثالث المتوسط",
   /** Marketing slogan shown in the hero and footer */
   slogan: ["معلمون معتمدون", "دروس أونلاين", "ودعم على مدار الساعة"],
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://ghiras.sa",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://ghirasedu.site",
 
   supervisor: {
     name: "أ. غادة القرني",
