@@ -2,9 +2,10 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { cleanReport, reportSchema } from "@/lib/report";
+import { kickOutbox, queueReportEmail } from "@/lib/email";
 import { audit } from "@/lib/audit";
 import { requireRole } from "@/lib/auth";
-import { one, q, tx } from "@/lib/db";
+import { one, pool, q, tx } from "@/lib/db";
 import { checkCv, saveCv } from "@/lib/documents";
 import { riyadhToUtc, addDaysKey } from "@/lib/time";
 import { fail, fieldErrorsOf, keepValues, teamsLink, type ActionState } from "@/lib/validation";
@@ -132,6 +133,7 @@ export async function updateSessionAction(_: ActionState, fd: FormData): Promise
     [d.id, user.id, d.status, d.teacher_notes || null, report]);
   // the full report goes to the append-only audit log, so earlier versions are never lost
   await audit("booking.teacher_update", "booking", d.id, user.id, { from: b.status, to: d.status, report });
+  if (report) { await queueReportEmail(pool, d.id); await kickOutbox(); } // once per session (dedupe), later edits don't re-send
   revalidatePath("/teacher", "layout");
   revalidatePath("/parent", "layout");
   return { ok: report ? "تم الحفظ، ووصل التقرير لولي الأمر." : "تم الحفظ، وتظهر ملاحظاتك لولي الأمر." };

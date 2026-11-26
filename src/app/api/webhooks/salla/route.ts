@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { parseSallaOrder, verifySallaSignature } from "@/lib/salla";
 import { revokeConnection, sallaLog, saveAuthorization } from "@/lib/salla-api";
 import { processSallaOrder, pushFulfilledStatus } from "@/lib/salla-orders";
+import { kickOutbox } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 const MAX_BODY = 512 * 1024;
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
   // ---- Store order events ----
   const o = parseSallaOrder(payload);
   const res = await processSallaOrder(o, raw, { recordIgnored: event.startsWith("order.") });
+  await kickOutbox(); // activation email, if this order activated a subscription
 
   // Tell Salla the order is fulfilled — after responding quickly (retried by the sync job if it fails)
   if (res.result === "matched" && res.subscriptionId) {

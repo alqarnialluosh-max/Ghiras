@@ -1,4 +1,5 @@
 import "server-only";
+import { enqueueAdmin, enqueueForUser, firstName } from "./email";
 import type { PoolClient } from "pg";
 import { audit } from "./audit";
 import { postSubscriptionIncome } from "./accounting";
@@ -84,6 +85,16 @@ export async function activateSubscription(
   await postSubscriptionIncome(c, subId); // accounting: income (+ estimated Salla fee)
   await audit("subscription.activate", "subscription", subId, opts.actorId ?? null,
     { order: opts.orderId ?? null, via: opts.actorId ? "admin" : "salla_webhook" }, c);
+  const { rows: info } = await c.query<{ parent_id: string; parent_name: string; plan: string; student: string; reference: string }>(
+    `SELECT s.parent_id, u.full_name parent_name, p.name_ar plan, st.full_name student, s.reference
+       FROM subscriptions s JOIN users u ON u.id = s.parent_id JOIN plans p ON p.code = s.plan_code JOIN students st ON st.id = s.student_id
+      WHERE s.id = $1`, [subId]);
+  if (info[0]) {
+    const i = info[0];
+    await enqueueForUser(c, i.parent_id, "subscription_active",
+      { plan: i.plan, student: firstName(i.student), reference: i.reference }, `sub_active:${subId}`);
+    await enqueueAdmin(c, "admin_new_subscription", { name: i.parent_name, plan: i.plan, reference: i.reference }, `admin_sub:${subId}`);
+  }
   return true;
 }
 

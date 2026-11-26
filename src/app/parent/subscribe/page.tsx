@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageTitle } from "@/components/DashShell";
-import { requireRole } from "@/lib/auth";
+import { needsEmailVerification, requireRole } from "@/lib/auth";
+import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
 import { getPlans, planPrice, planSessionsLine } from "@/lib/plans";
 import { studentsOf } from "@/lib/queries";
 import { SubscribeForm } from "./SubscribeForm";
@@ -9,6 +10,14 @@ export const metadata = { title: "اشتراك جديد" };
 
 export default async function SubscribePage({ searchParams }: { searchParams: Promise<{ plan?: string }> }) {
   const user = await requireRole("parent");
+  if (await needsEmailVerification(user)) {
+    return (
+      <>
+        <PageTitle title="اشتراك جديد" />
+        <VerifyEmailBanner email={user.email} blocking="أكّد بريدك قبل الدفع، فبه نربط الدفع باشتراكك ونرسل لك تأكيد التفعيل" />
+      </>
+    );
+  }
   const { plan } = await searchParams;
   const [plans, students] = await Promise.all([getPlans(), studentsOf(user.id)]);
 

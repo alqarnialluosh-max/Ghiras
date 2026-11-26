@@ -1,4 +1,5 @@
 import "server-only";
+import { kickOutbox, queueBookingEmails, queueRescheduleEmails } from "./email";
 import type { PoolClient } from "pg";
 import { isExclusionViolation, q, tx } from "./db";
 import { audit } from "./audit";
@@ -182,11 +183,13 @@ export async function adminReschedule(input: {
       await c.query(`UPDATE bookings SET replaced_by = $2 WHERE id = $1`, [old.id, ins[0].id]);
       await audit("booking.reschedule", "booking", old.id, input.adminId,
         { new_booking: ins[0].id, starts_at: startsAt.toISOString(), note: input.note ?? null }, c);
+      await queueRescheduleEmails(c, ins[0].id);
       return ins[0].id;
     });
     // Teams: new meeting for the new time, cancel the old one (best effort)
     await ensureBookingMeeting(newId).catch(() => false);
     if (oldEventId) await cancelMeeting(oldEventId, input.bookingId).catch(() => false);
+    await kickOutbox();
     return newId;
   } catch (e) {
     if (isExclusionViolation(e)) throw new BookingError("الموعد الجديد يتعارض مع حصة أخرى للمعلمة أو الطالب.");
@@ -207,7 +210,7 @@ export async function createBooking(input: {
   const endsAt = new Date(startsAt.getTime() + SESSION_MINUTES * 60_000);
 
   try {
-    return await tx(async (c) => {
+    const id = await tx(async (c) => {
       const { rows: subs } = await c.query<Sub>(
         `SELECT * FROM subscriptions WHERE id = $1 AND parent_id = $2 FOR UPDATE`,
         [input.subscriptionId, input.parentId],
@@ -267,8 +270,11 @@ export async function createBooking(input: {
       );
       await audit("booking.create", "booking", ins[0].id, input.actorId,
         { teacher: input.teacherId, starts_at: startsAt.toISOString(), subscription: sub.id }, c);
+      await queueBookingEmails(c, ins[0].id);
       return ins[0].id;
     });
+    await kickOutbox();
+    return id;
   } catch (e) {
     if (isExclusionViolation(e)) {
       throw new BookingError("هذا الوقت انحجز للتو أو يتعارض مع حصة أخرى. اختر وقتاً آخر.");

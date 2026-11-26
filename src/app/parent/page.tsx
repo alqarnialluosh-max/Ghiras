@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Empty, PageTitle } from "@/components/DashShell";
 import { SessionCard } from "@/components/SessionCard";
-import { requireRole } from "@/lib/auth";
+import { needsEmailVerification, requireRole } from "@/lib/auth";
+import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
 import { SUB_STATUS, SUBJECTS, TRACKS } from "@/lib/domain";
 import { getPlans } from "@/lib/plans";
 import { bookingsFor, studentsOf } from "@/lib/queries";
@@ -25,6 +26,7 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
     <>
       <PageTitle title={`أهلاً ${first}`} sub={welcome ? "حسابك جاهز. الخطوة التالية: أضف ابنك أو ابنتك." : "هذه خلاصة حصص أبنائك."}
         action={active.length > 0 && <Link href="/parent/book" className="btn btn-primary">احجز حصة</Link>} />
+      {(await needsEmailVerification(user)) && <VerifyEmailBanner email={user.email} />}
 
       {!survey && (
         <div className="panel mb-6 flex flex-col items-start gap-3 border-sky-300 bg-sky-50 p-5 sm:flex-row sm:items-center sm:justify-between">

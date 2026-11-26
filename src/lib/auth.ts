@@ -19,6 +19,7 @@ export type SessionUser = {
   status: "active" | "pending" | "suspended";
   full_name: string;
   email: string;
+  email_verified: boolean;
   session_id: string;
 };
 
@@ -60,8 +61,8 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token || token.length > 100) return null;
   const id = sha256(token);
-  const row = await one<SessionUser & { expires_at: Date }>(
-    `SELECT u.id, u.role, u.status, u.full_name, u.email, s.id AS session_id, s.expires_at
+  const row = await one<Omit<SessionUser, "email_verified"> & { expires_at: Date; email_verified_at: Date | null }>(
+    `SELECT u.id, u.role, u.status, u.full_name, u.email, u.email_verified_at, s.id AS session_id, s.expires_at
        FROM auth_sessions s JOIN users u ON u.id = s.user_id
       WHERE s.id = $1 AND s.revoked_at IS NULL AND s.expires_at > now()
         AND u.archived_at IS NULL AND u.status <> 'suspended'`,
@@ -72,7 +73,8 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   if (row.expires_at.getTime() - Date.now() < REFRESH_WHEN_DAYS_LEFT * 86400_000) {
     await q(`UPDATE auth_sessions SET expires_at = now() + interval '${SESSION_DAYS} days' WHERE id = $1`, [id]);
   }
-  return { id: row.id, role: row.role, status: row.status, full_name: row.full_name, email: row.email, session_id: row.session_id };
+  return { id: row.id, role: row.role, status: row.status, full_name: row.full_name, email: row.email,
+    email_verified: !!row.email_verified_at, session_id: row.session_id };
 });
 
 export async function destroySession() {
@@ -96,4 +98,10 @@ export async function requireRole(...roles: Role[]): Promise<SessionUser> {
   if (!user) redirect("/login");
   if (!roles.includes(user.role)) redirect(homeFor(user.role));
   return user;
+}
+
+/** Unverified email blocks paying and booking — but only once email can actually be delivered. */
+export async function needsEmailVerification(user: SessionUser) {
+  const { emailConfigured } = await import("./email");
+  return !user.email_verified && emailConfigured();
 }

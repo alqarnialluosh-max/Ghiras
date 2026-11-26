@@ -6,9 +6,10 @@ import { audit } from "@/lib/audit";
 import { hashPassword, requireRole, revokeAllSessions } from "@/lib/auth";
 import { adminReschedule, BookingError } from "@/lib/booking";
 import { encrypt, makeReference, normalizeSaudiPhone, phoneHash, randomToken } from "@/lib/crypto";
-import { isUniqueViolation, one, q, tx } from "@/lib/db";
+import { isUniqueViolation, one, pool, q, tx } from "@/lib/db";
 import { env } from "@/lib/env";
 import { activateSubscription } from "@/lib/subscriptions";
+import { adminRecipient, canSendTo, dispatchOutbox, emailMode, enqueue, enqueueForUser, kickOutbox } from "@/lib/email";
 import { postPayoutExpense } from "@/lib/accounting";
 import { storeInfo } from "@/lib/salla-api";
 import { syncRecentOrders } from "@/lib/salla-orders";
@@ -26,6 +27,7 @@ export async function setTeacherStatusAction(fd: FormData) {
     if (op === "approve") {
       await c.query(`UPDATE users SET status = 'active' WHERE id = $1 AND role = 'teacher'`, [id]);
       await c.query(`UPDATE teacher_profiles SET approved_at = COALESCE(approved_at, now()), approved_by = $2 WHERE user_id = $1`, [id, admin.id]);
+      await enqueueForUser(c, id, "teacher_approved", {}, `teacher_approved:${id}`);
     } else if (op === "suspend") {
       await c.query(`UPDATE users SET status = 'suspended' WHERE id = $1 AND role = 'teacher'`, [id]);
       await c.query(`UPDATE auth_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [id]);
@@ -35,6 +37,7 @@ export async function setTeacherStatusAction(fd: FormData) {
     await audit(`teacher.${op}`, "user", id, admin.id, {}, c);
   });
   revalidatePath("/admin", "layout");
+  await kickOutbox();
 }
 
 export async function activateSubscriptionAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -64,6 +67,7 @@ export async function activateSubscriptionAction(_: ActionState, fd: FormData): 
     throw e;
   }
   revalidatePath("/admin", "layout");
+  await kickOutbox();
   return { ok: "تم تفعيل الاشتراك." };
 }
 
@@ -74,6 +78,7 @@ export async function voidSubscriptionAction(fd: FormData) {
   const row = await one(`UPDATE subscriptions SET status = 'void' WHERE id = $1 AND status = 'pending_payment' RETURNING id`, [id]);
   if (row) await audit("subscription.void", "subscription", id, admin.id);
   revalidatePath("/admin", "layout");
+  await kickOutbox();
 }
 
 export async function ignoreEventAction(fd: FormData) {
@@ -82,6 +87,7 @@ export async function ignoreEventAction(fd: FormData) {
   await q(`UPDATE salla_events SET match_status = 'ignored', resolved_by = $2 WHERE id = $1 AND match_status = 'unmatched'`, [id, admin.id]);
   await audit("salla_event.ignore", "salla_event", id, admin.id);
   revalidatePath("/admin", "layout");
+  await kickOutbox();
 }
 
 export async function setBookingStatusAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -93,6 +99,7 @@ export async function setBookingStatusAction(_: ActionState, fd: FormData): Prom
   if (!row) return fail("لا يمكن تعديل حالة حصة أعيدت جدولتها.");
   await audit("booking.admin_status", "booking", id.data, admin.id, { status: status.data });
   revalidatePath("/admin", "layout");
+  await kickOutbox();
   return { ok: "تم تحديث الحالة." };
 }
 
@@ -115,6 +122,7 @@ export async function rescheduleAction(_: ActionState, fd: FormData): Promise<Ac
     throw e;
   }
   revalidatePath("/admin", "layout");
+  await kickOutbox();
   redirect(`/admin/bookings/${newId}?rescheduled=1`);
 }
 
@@ -141,6 +149,7 @@ export async function recordPayoutAction(fd: FormData) {
     await audit("payout.record", "user", teacherId, admin.id, { month, sessions: n, amount: n * rate }, c);
   });
   revalidatePath("/admin", "layout");
+  await kickOutbox();
 }
 
 export async function updatePlanAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -217,8 +226,9 @@ export async function createClientAction(_: ActionState, fd: FormData): Promise<
         if (rows[0]) throw new Error("ORDER_USED");
       }
       const { rows: u } = await c.query<{ id: string }>(
-        `INSERT INTO users (role, status, full_name, email, phone_enc, phone_hash, password_hash)
-         VALUES ('parent','active',$1,$2,$3,$4,$5) RETURNING id`,
+        // created by the owner for a family she knows, so the address counts as verified
+        `INSERT INTO users (role, status, full_name, email, phone_enc, phone_hash, password_hash, email_verified_at)
+         VALUES ('parent','active',$1,$2,$3,$4,$5, now()) RETURNING id`,
         [d.full_name, d.email, encrypt(normalizeSaudiPhone(d.phone)), phoneHash(d.phone), await hashPassword(temp)],
       );
       const { rows: st } = await c.query<{ id: string }>(
@@ -243,6 +253,7 @@ export async function createClientAction(_: ActionState, fd: FormData): Promise<
       return { reference };
     });
     revalidatePath("/admin", "layout");
+  await kickOutbox();
     return {
       ok: `تم إنشاء الحساب ✓ — البريد: ${d.email} · كلمة المرور المؤقتة: ${temp}` +
         (result.reference ? ` · الاشتراك ${result.reference} مفعّل الآن` : "") +
@@ -292,6 +303,7 @@ export async function addManualSubscriptionAction(_: ActionState, fd: FormData):
       return s[0].reference;
     });
     revalidatePath("/admin", "layout");
+  await kickOutbox();
     return { ok: `تم تفعيل الاشتراك ${ref}.` };
   } catch (e) {
     const m = (e as Error).message;
@@ -328,6 +340,7 @@ export async function addLedgerEntryAction(_: ActionState, fd: FormData): Promis
     [d.kind, category, d.amount_sar, d.entry_date, d.description, d.salla_order_id, admin.id]);
   await audit("ledger.add", "ledger_entry", row!.id, admin.id, { kind: d.kind, amount: d.amount_sar, category });
   revalidatePath("/admin", "layout");
+  await kickOutbox();
   return { ok: `تم تسجيل ${d.kind === "income" ? "الإيراد" : "المصروف"}: ${d.amount_sar} ﷼ — ${category}.` };
 }
 
@@ -342,6 +355,7 @@ export async function voidLedgerEntryAction(_: ActionState, fd: FormData): Promi
   if (!row) return fail("القيد ملغى مسبقاً.");
   await audit("ledger.void", "ledger_entry", id.data, admin.id, { reason: reason.data });
   revalidatePath("/admin", "layout");
+  await kickOutbox();
   return { ok: "تم إلغاء القيد، ويبقى ظاهراً في السجل مع السبب." };
 }
 
@@ -359,6 +373,7 @@ export async function updateFeeSettingsAction(_: ActionState, fd: FormData): Pro
   }
   await audit("settings.fees", "settings", null, admin.id, parsed.data);
   revalidatePath("/admin", "layout");
+  await kickOutbox();
   return { ok: "تم الحفظ. تنطبق على المدفوعات الجديدة من سلة." };
 }
 
@@ -370,6 +385,7 @@ export async function sallaSyncAction(_: ActionState): Promise<ActionState> {
   const r = await syncRecentOrders(7);
   await audit("salla.sync_manual", "salla", null, admin.id, r);
   revalidatePath("/admin", "layout");
+  await kickOutbox();
   if (r.error) return fail(`تعذّرت المزامنة: ${r.error}`);
   if (r.skipped) return { ok: "مزامنة أخرى قيد التشغيل الآن، حاول بعد دقيقة." };
   return { ok: `تمت المزامنة: فُحص ${r.checked} طلب، فُعّل ${r.matched}، يحتاج مراجعة ${r.unmatched}، وحُدّثت حالة ${r.statusPushed} طلب في سلة.` };
@@ -402,6 +418,7 @@ export async function sallaStatusSettingAction(_: ActionState, fd: FormData): Pr
   await q(`UPDATE settings SET value = $1, updated_by = $2, updated_at = now() WHERE key = 'salla_complete_status'`, [slug.data, admin.id]);
   await audit("settings.salla_status", "settings", null, admin.id, { slug: slug.data });
   revalidatePath("/admin", "layout");
+  await kickOutbox();
   return { ok: "تم الحفظ." };
 }
 
@@ -432,5 +449,25 @@ export async function teamsRetryAction(_: ActionState): Promise<ActionState> {
   await q(`UPDATE bookings SET teams_attempts = 0 WHERE status = 'scheduled' AND teams_source <> 'auto' AND ends_at > now()`);
   const r = await retryPendingMeetings(100);
   revalidatePath("/admin", "layout");
+  await kickOutbox();
   return { ok: `حاولنا ${r.tried} حصة، وأُنشئ رابط مستقل لـ ${r.created}.` };
+}
+
+export async function sendTestEmailAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requireRole("admin");
+  const to = z.string().trim().toLowerCase().email().safeParse(fd.get("to"));
+  if (!to.success) return fail("اكتب بريداً صحيحاً.");
+  if (emailMode() === "off") return fail("أضف RESEND_API_KEY في Railway أولاً.");
+  if (!canSendTo(to.data)) return fail(`بدون دومين موثّق يمكن الإرسال إلى ${adminRecipient() || "بريد المالك"} فقط، وهو البريد الذي فتحت به حساب Resend.`);
+  await enqueue(pool, { to: to.data, template: "test", userId: admin.id });
+  const r = await dispatchOutbox(5);
+  await audit("email.test", "email", null, admin.id, { to: to.data });
+  revalidatePath("/admin/emails");
+  return r.sent > 0 ? { ok: `أُرسلت الرسالة إلى ${to.data}.` } : fail("لم تُرسل الرسالة. راجع الخطأ في السجل أدناه.");
+}
+
+export async function flushEmailsAction() {
+  await requireRole("admin");
+  await dispatchOutbox(50);
+  revalidatePath("/admin/emails");
 }

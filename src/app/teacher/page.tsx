@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Empty, PageTitle } from "@/components/DashShell";
 import { SessionCard } from "@/components/SessionCard";
-import { requireRole } from "@/lib/auth";
+import { needsEmailVerification, requireRole } from "@/lib/auth";
+import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
 import { one } from "@/lib/db";
 import { env } from "@/lib/env";
 import { bookingsFor } from "@/lib/queries";
@@ -29,6 +30,7 @@ export default async function TeacherHome() {
   return (
     <>
       <PageTitle title={`أهلاً ${user.full_name.split(" ")[0]}`} />
+      {(await needsEmailVerification(user)) && <VerifyEmailBanner email={user.email} />}
 
       {!approved && (
         <div className="panel mb-8 border-sky-300 bg-sky-50 p-6">

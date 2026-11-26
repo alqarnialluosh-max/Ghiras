@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Empty, PageTitle } from "@/components/DashShell";
-import { requireRole } from "@/lib/auth";
+import { needsEmailVerification, requireRole } from "@/lib/auth";
+import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
 import { availableSlots, bookableDays, eligibleTeachers, type Sub } from "@/lib/booking";
 import { GRADES, SUBJECT_KEYS, SUBJECTS, TRACKS, type Subject } from "@/lib/domain";
 import { parentSubscriptions, remainingFor } from "@/lib/subscriptions";
@@ -32,6 +33,14 @@ function Choice({ href, active, children }: { href: string; active: boolean; chi
 
 export default async function BookPage({ searchParams }: { searchParams: Promise<SP> }) {
   const user = await requireRole("parent");
+  if (await needsEmailVerification(user)) {
+    return (
+      <>
+        <PageTitle title="احجز حصة" />
+        <VerifyEmailBanner email={user.email} blocking="أكّد بريدك قبل الحجز، لتصلك مواعيد الحصص وتذكيراتها" />
+      </>
+    );
+  }
   const sp = await searchParams;
   const subs = (await parentSubscriptions(user.id)).filter((s) => s.status === "active");
 

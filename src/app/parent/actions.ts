@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { audit } from "@/lib/audit";
-import { requireRole } from "@/lib/auth";
+import { needsEmailVerification, requireRole } from "@/lib/auth";
 import { BookingError, createBooking } from "@/lib/booking";
 import { encrypt } from "@/lib/crypto";
 import { one } from "@/lib/db";
@@ -55,6 +55,7 @@ const subscribeSchema = z.object({
 
 export async function subscribeAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const user = await requireRole("parent");
+  if (await needsEmailVerification(user)) return fail("أكّد بريدك الإلكتروني أولاً من الرابط الذي أرسلناه لك.");
   const values = keepValues(fd);
   const raw = Object.fromEntries(fd);
   if (!raw.subject) delete raw.subject;
@@ -95,6 +96,7 @@ const bookSchema = z.object({
 
 export async function bookAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const user = await requireRole("parent");
+  if (await needsEmailVerification(user)) return fail("أكّد بريدك الإلكتروني أولاً من الرابط الذي أرسلناه لك.");
   const parsed = bookSchema.safeParse(Object.fromEntries(fd));
   if (!parsed.success) return fail("اختر الوقت والمعلمة أولاً.", fieldErrorsOf(parsed.error));
   if (!(await rateLimit(`book:${user.id}`, 40, 3600))) return fail("طلبات كثيرة، حاول بعد قليل.");
