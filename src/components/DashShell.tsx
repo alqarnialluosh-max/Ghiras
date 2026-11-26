@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { roleLabel } from "@/lib/permissions";
 import { logoutAction } from "@/app/(auth)/actions";
 import type { SessionUser } from "@/lib/auth";
 import { Logo } from "./Logo";
 import { NavLinks } from "./NavLinks";
 
-const ROLE_LABEL = { parent: "ولي أمر", teacher: "معلمة", admin: "المالك" } as const;
+
 
 export function DashShell({ user, nav, children }: {
   user: SessionUser; nav: { href: string; label: string }[]; children: React.ReactNode;
@@ -20,7 +21,7 @@ export function DashShell({ user, nav, children }: {
           <div className="flex items-center gap-3">
             <div className="hidden text-left leading-tight sm:block">
               <p className="text-[.92rem] font-medium">{user.full_name}</p>
-              <p className="text-xs text-muted">{ROLE_LABEL[user.role]}</p>
+              <p className="text-xs text-muted">{roleLabel(user)}</p>
             </div>
             <Link href="/account" className="btn btn-ghost btn-sm hidden sm:inline-flex">حسابي</Link>
             <form action={logoutAction}>

@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import Link from "next/link";
 import { ActionForm } from "@/components/ActionForm";
 import { PageTitle } from "@/components/DashShell";
@@ -13,6 +14,7 @@ export const metadata = { title: "ربط تيمز" };
 const ACTION: Record<string, string> = { token: "تسجيل الدخول", create: "إنشاء اجتماع", cancel: "إلغاء اجتماع", test: "اختبار" };
 
 export default async function TeamsPage() {
+  await requirePerm("settings.manage");
   const auto = teamsAutoConfigured();
   const [counts, pending, logs] = await Promise.all([
     q<{ src: string; n: string }>(

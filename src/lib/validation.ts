@@ -58,7 +58,8 @@ export const teamsLink = z
   .refine((v) => v === "" || /^https:\/\/(teams\.microsoft\.com|teams\.live\.com)\//.test(v),
     "رابط Teams يبدأ بـ https://teams.microsoft.com أو https://teams.live.com");
 
-export const teacherRegisterSchema = z.object({
+/** Teacher fields without the refinement, so other forms can pick from them. */
+export const teacherFields = z.object({
   full_name: name,
   email,
   phone,
@@ -71,7 +72,9 @@ export const teacherRegisterSchema = z.object({
   bio: z.string().trim().min(20, "اكتبي نبذة لا تقل عن 20 حرفاً").max(1500),
   teams_link: teamsLink,
   consent: z.literal("on", { message: "الموافقة على الشروط مطلوبة" }),
-}).refine((d) => d.min_grade <= d.max_grade, { path: ["max_grade"], message: "الصف الأعلى يجب أن يكون بعد الصف الأدنى" });
+});
+export const teacherRegisterSchema = teacherFields
+  .refine((d) => d.min_grade <= d.max_grade, { path: ["max_grade"], message: "الصف الأعلى يجب أن يكون بعد الصف الأدنى" });
 
 export const studentSchema = z.object({
   full_name: name,

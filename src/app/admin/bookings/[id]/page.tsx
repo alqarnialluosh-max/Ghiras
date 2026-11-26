@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/ActionForm";
@@ -17,6 +18,7 @@ export const metadata = { title: "حصة" };
 export default async function AdminBooking({ params, searchParams }: {
   params: Promise<{ id: string }>; searchParams: Promise<{ rescheduled?: string }>;
 }) {
+  await requirePerm("sessions.view");
   const { id } = await params;
   const { rescheduled } = await searchParams;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();

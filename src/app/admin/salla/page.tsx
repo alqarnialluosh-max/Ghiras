@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import { ActionForm } from "@/components/ActionForm";
 import { PageTitle } from "@/components/DashShell";
 import { SubmitButton } from "@/components/forms";
@@ -16,6 +17,7 @@ const ACTION_LABEL: Record<string, string> = {
 };
 
 export default async function SallaPage() {
+  await requirePerm("settings.manage");
   const [connInitial, plans, completeSlug, lastSync, logs, counts] = await Promise.all([
     activeConnection(), getPlans(true), getSetting("salla_complete_status", "completed"), getSetting("salla_last_sync", ""),
     q<{ id: string; action: string; order_id: string | null; ok: boolean; http_status: number | null; detail: string | null; created_at: Date }>(

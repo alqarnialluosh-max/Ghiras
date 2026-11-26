@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import { PageTitle } from "@/components/DashShell";
 import { q } from "@/lib/db";
 import { dateTimeLabel } from "@/lib/time";
@@ -5,6 +6,7 @@ import { dateTimeLabel } from "@/lib/time";
 export const metadata = { title: "السجل" };
 
 export default async function AdminAudit() {
+  await requirePerm("audit.view");
   const rows = await q<{ id: string; action: string; entity: string; entity_id: string | null; data: Record<string, unknown>;
     created_at: Date; actor: string | null }>(
     `SELECT a.id, a.action, a.entity, a.entity_id, a.data, a.created_at, u.full_name actor

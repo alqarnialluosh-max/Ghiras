@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import Link from "next/link";
 import { Empty, PageTitle } from "@/components/DashShell";
 import { decrypt } from "@/lib/crypto";
@@ -12,6 +13,7 @@ import { shortDate } from "@/lib/time";
 export const metadata = { title: "المشتركين" };
 
 export default async function SubscribersPage({ searchParams }: { searchParams: Promise<{ plan?: string; view?: string }> }) {
+  await requirePerm("parents.view");
   await expireOverdue();
   const sp = await searchParams;
   const plans = await getPlans(true);

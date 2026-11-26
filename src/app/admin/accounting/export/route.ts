@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { ledgerEntries } from "@/lib/accounting";
 import { audit } from "@/lib/audit";
 
@@ -14,7 +14,7 @@ function cell(v: unknown) {
 }
 
 export async function GET(req: Request) {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("finance.view");
   const url = new URL(req.url);
   const re = /^\d{4}-\d{2}-\d{2}$/;
   const from = re.test(url.searchParams.get("from") ?? "") ? url.searchParams.get("from")! : "2000-01-01";

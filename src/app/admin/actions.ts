@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { audit } from "@/lib/audit";
-import { hashPassword, requireRole, revokeAllSessions } from "@/lib/auth";
+import { hashPassword, requirePerm, requireRole, revokeAllSessions } from "@/lib/auth";
 import { adminReschedule, BookingError } from "@/lib/booking";
 import { encrypt, makeReference, normalizeSaudiPhone, phoneHash, randomToken } from "@/lib/crypto";
 import { isUniqueViolation, one, pool, q, tx } from "@/lib/db";
@@ -15,13 +15,14 @@ import { storeInfo } from "@/lib/salla-api";
 import { syncRecentOrders } from "@/lib/salla-orders";
 import { cancelMeeting, createMeeting, retryPendingMeetings, teamsAutoConfigured } from "@/lib/teams";
 import { PAYABLE } from "@/lib/teachers";
+import { can } from "@/lib/permissions";
 import { markDeclineReviewed } from "@/lib/requests";
 import { fail, fieldErrorsOf, keepValues, type ActionState } from "@/lib/validation";
 
 const uuid = z.string().uuid();
 
 export async function setTeacherStatusAction(fd: FormData) {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("teachers.manage");
   const id = uuid.parse(fd.get("id"));
   const op = z.enum(["approve", "suspend", "reactivate"]).parse(fd.get("op"));
   await tx(async (c) => {
@@ -42,7 +43,7 @@ export async function setTeacherStatusAction(fd: FormData) {
 }
 
 export async function activateSubscriptionAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("subscriptions.manage");
   const id = uuid.safeParse(fd.get("id"));
   const order = z.string().trim().max(60).parse(fd.get("order_id") ?? "");
   const note = z.string().trim().max(300).parse(fd.get("note") ?? "");
@@ -73,7 +74,7 @@ export async function activateSubscriptionAction(_: ActionState, fd: FormData): 
 }
 
 export async function voidSubscriptionAction(fd: FormData) {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("subscriptions.manage");
   const id = uuid.parse(fd.get("id"));
   // Only unpaid requests can be voided. Paid subscriptions are never cancelled.
   const row = await one(`UPDATE subscriptions SET status = 'void' WHERE id = $1 AND status = 'pending_payment' RETURNING id`, [id]);
@@ -83,7 +84,7 @@ export async function voidSubscriptionAction(fd: FormData) {
 }
 
 export async function ignoreEventAction(fd: FormData) {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("subscriptions.manage");
   const id = uuid.parse(fd.get("id"));
   await q(`UPDATE salla_events SET match_status = 'ignored', resolved_by = $2 WHERE id = $1 AND match_status = 'unmatched'`, [id, admin.id]);
   await audit("salla_event.ignore", "salla_event", id, admin.id);
@@ -92,7 +93,7 @@ export async function ignoreEventAction(fd: FormData) {
 }
 
 export async function setBookingStatusAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("sessions.manage");
   const id = uuid.safeParse(fd.get("id"));
   const status = z.enum(["scheduled", "completed", "student_absent", "teacher_absent"]).safeParse(fd.get("status"));
   if (!id.success || !status.success) return fail("بيانات غير صحيحة.");
@@ -105,7 +106,7 @@ export async function setBookingStatusAction(_: ActionState, fd: FormData): Prom
 }
 
 export async function rescheduleAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("sessions.manage");
   const parsed = z.object({
     id: uuid, teacher_id: z.string().uuid("اختر المعلمة"),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "اختر التاريخ"),
@@ -128,7 +129,7 @@ export async function rescheduleAction(_: ActionState, fd: FormData): Promise<Ac
 }
 
 export async function recordPayoutAction(fd: FormData) {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("finance.manage");
   const teacherId = uuid.parse(fd.get("teacher_id"));
   const month = z.string().regex(/^\d{4}-\d{2}$/).parse(fd.get("month"));
   const [y, mo] = month.split("-").map(Number);
@@ -154,7 +155,7 @@ export async function recordPayoutAction(fd: FormData) {
 }
 
 export async function updatePlanAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("settings.manage");
   const parsed = z.object({
     code: z.string().min(1),
     price_sar: z.coerce.number().min(0).max(100000),
@@ -172,12 +173,15 @@ export async function updatePlanAction(_: ActionState, fd: FormData): Promise<Ac
 }
 
 export async function resetPasswordAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("parents.manage", "teachers.manage");
   const id = uuid.safeParse(fd.get("id"));
   if (!id.success) return fail("مستخدم غير صحيح.");
   const temp = `Gh${randomToken(9)}7`;
-  const row = await one(`UPDATE users SET password_hash = $2, failed_logins = 0, locked_until = NULL WHERE id = $1 AND role <> 'admin' RETURNING id`,
-    [id.data, await hashPassword(temp)]);
+  // Staff may only reset the account types their permissions cover; staff/owner passwords are the owner's to reset.
+  const roles = admin.role === "admin" ? ["parent", "teacher", "staff"]
+    : [...(can(admin, "parents.manage") ? ["parent"] : []), ...(can(admin, "teachers.manage") ? ["teacher"] : [])];
+  const row = await one(`UPDATE users SET password_hash = $2, failed_logins = 0, locked_until = NULL
+                          WHERE id = $1 AND role = ANY($3::user_role[]) RETURNING id`, [id.data, await hashPassword(temp), roles]);
   if (!row) return fail("لا يمكن إعادة تعيين كلمة مرور هذا الحساب من هنا.");
   await revokeAllSessions(id.data);
   await audit("user.password_reset", "user", id.data, admin.id);
@@ -203,8 +207,11 @@ const createClientSchema = z.object({
 });
 
 export async function createClientAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("parents.manage");
   const values = keepValues(fd);
+  // the account comes with an active subscription, so activating subscriptions must be allowed too
+  if (!can(admin, "subscriptions.manage"))
+    return fail("إنشاء حساب باشتراك فعّال يحتاج صلاحية تفعيل الاشتراكات. اطلب من المدير، أو أنشئ طلب اعتماد «تفعيل يدوي».", undefined, values);
   const raw = Object.fromEntries(fd);
   if (!raw.subject) delete raw.subject;
   const parsed = createClientSchema.safeParse(raw);
@@ -269,7 +276,7 @@ export async function createClientAction(_: ActionState, fd: FormData): Promise<
 
 // Owner: add a manually-activated subscription to an existing family (critical cases)
 export async function addManualSubscriptionAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("subscriptions.manage");
   const parsed = z.object({
     student_id: z.string().uuid("اختر الطالب"),
     plan: z.string().min(1, "اختر الباقة"),
@@ -328,7 +335,7 @@ const entrySchema = z.object({
 });
 
 export async function addLedgerEntryAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("finance.manage");
   const values = keepValues(fd);
   const parsed = entrySchema.safeParse(Object.fromEntries(fd));
   if (!parsed.success) return fail("راجع الحقول المظللة.", fieldErrorsOf(parsed.error), values);
@@ -346,7 +353,7 @@ export async function addLedgerEntryAction(_: ActionState, fd: FormData): Promis
 }
 
 export async function voidLedgerEntryAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("finance.manage");
   const id = uuid.safeParse(fd.get("id"));
   const reason = z.string().trim().min(3, "اكتب سبب الإلغاء").max(300).safeParse(fd.get("reason"));
   if (!id.success) return fail("قيد غير صحيح.");
@@ -361,7 +368,7 @@ export async function voidLedgerEntryAction(_: ActionState, fd: FormData): Promi
 }
 
 export async function updateFeeSettingsAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("finance.manage");
   const parsed = z.object({
     salla_fee_percent: z.coerce.number().min(0, "نسبة غير صحيحة").max(20, "نسبة غير صحيحة"),
     salla_fee_fixed_sar: z.coerce.number().min(0).max(100),
@@ -382,7 +389,7 @@ export async function updateFeeSettingsAction(_: ActionState, fd: FormData): Pro
 // Salla integration
 // ---------------------------------------------------------------------------
 export async function sallaSyncAction(_: ActionState): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("settings.manage");
   const r = await syncRecentOrders(7);
   await audit("salla.sync_manual", "salla", null, admin.id, r);
   revalidatePath("/admin", "layout");
@@ -393,7 +400,7 @@ export async function sallaSyncAction(_: ActionState): Promise<ActionState> {
 }
 
 export async function sallaTestAction(_: ActionState): Promise<ActionState> {
-  await requireRole("admin");
+  await requirePerm("settings.manage");
   try {
     const info = (await storeInfo()) as { data?: { merchant?: { name?: string; id?: number } } };
     return { ok: `الاتصال يعمل ✓ — المتجر: ${info.data?.merchant?.name ?? "غير معروف"}` };
@@ -403,7 +410,7 @@ export async function sallaTestAction(_: ActionState): Promise<ActionState> {
 }
 
 export async function sallaUseProductAction(fd: FormData) {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("settings.manage");
   const plan = z.enum(["ALL_SUBJECTS", "SINGLE_SUBJECT", "SINGLE_SESSION"]).parse(fd.get("plan"));
   const productId = z.string().regex(/^\d{1,20}$/).parse(fd.get("product_id"));
   const url = z.string().max(500).refine((v) => v === "" || /^https:\/\//.test(v)).parse(fd.get("url") ?? "");
@@ -413,7 +420,7 @@ export async function sallaUseProductAction(fd: FormData) {
 }
 
 export async function sallaStatusSettingAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("settings.manage");
   const slug = z.enum(["completed", "in_progress", ""]).safeParse(fd.get("slug") ?? "");
   if (!slug.success) return fail("اختيار غير صحيح.");
   await q(`UPDATE settings SET value = $1, updated_by = $2, updated_at = now() WHERE key = 'salla_complete_status'`, [slug.data, admin.id]);
@@ -427,7 +434,7 @@ export async function sallaStatusSettingAction(_: ActionState, fd: FormData): Pr
 // Microsoft Teams integration
 // ---------------------------------------------------------------------------
 export async function teamsTestAction(_: ActionState): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("settings.manage");
   if (!teamsAutoConfigured()) return fail("مفاتيح مايكروسوفت غير مضافة في Railway بعد.");
   try {
     const start = new Date(Date.now() + 24 * 3600_000);
@@ -445,7 +452,7 @@ export async function teamsTestAction(_: ActionState): Promise<ActionState> {
 }
 
 export async function teamsRetryAction(_: ActionState): Promise<ActionState> {
-  await requireRole("admin");
+  await requirePerm("settings.manage");
   if (!teamsAutoConfigured()) return fail("مفاتيح مايكروسوفت غير مضافة في Railway بعد.");
   await q(`UPDATE bookings SET teams_attempts = 0 WHERE status = 'scheduled' AND teams_source <> 'auto' AND ends_at > now()`);
   const r = await retryPendingMeetings(100);
@@ -455,7 +462,7 @@ export async function teamsRetryAction(_: ActionState): Promise<ActionState> {
 }
 
 export async function sendTestEmailAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("settings.manage");
   const to = z.string().trim().toLowerCase().email().safeParse(fd.get("to"));
   if (!to.success) return fail("اكتب بريداً صحيحاً.");
   if (emailMode() === "off") return fail("أضف RESEND_API_KEY في Railway أولاً.");
@@ -468,13 +475,13 @@ export async function sendTestEmailAction(_: ActionState, fd: FormData): Promise
 }
 
 export async function flushEmailsAction() {
-  await requireRole("admin");
+  await requirePerm("settings.manage");
   await dispatchOutbox(50);
   revalidatePath("/admin/emails");
 }
 
 export async function reviewDeclineAction(fd: FormData) {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("requests.manage");
   const id = uuid.safeParse(fd.get("id"));
   if (!id.success) return;
   await markDeclineReviewed(admin.id, id.data);

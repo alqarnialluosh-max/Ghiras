@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import Link from "next/link";
 import { PageTitle, Empty } from "@/components/DashShell";
 import { GRADES, SUBJECTS } from "@/lib/domain";
@@ -8,6 +9,7 @@ import { setTeacherStatusAction } from "../actions";
 export const metadata = { title: "المعلمات" };
 
 export default async function AdminTeachers() {
+  await requirePerm("teachers.view");
   const teachers = await allTeachers();
   return (
     <>

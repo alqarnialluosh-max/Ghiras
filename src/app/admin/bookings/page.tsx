@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import Link from "next/link";
 import { Empty, PageTitle } from "@/components/DashShell";
 import { SessionCard } from "@/components/SessionCard";
@@ -8,6 +9,7 @@ import { addDaysKey, riyadhDateKey, riyadhToUtc } from "@/lib/time";
 export const metadata = { title: "الحصص" };
 
 export default async function AdminBookings({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; status?: string }> }) {
+  await requirePerm("sessions.view");
   const sp = await searchParams;
   const today = riyadhDateKey(new Date());
   const from = /^\d{4}-\d{2}-\d{2}$/.test(sp.from ?? "") ? sp.from! : addDaysKey(today, -7);

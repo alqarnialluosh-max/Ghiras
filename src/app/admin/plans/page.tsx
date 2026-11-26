@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import { ActionForm } from "@/components/ActionForm";
 import { PageTitle } from "@/components/DashShell";
 import { SubmitButton } from "@/components/forms";
@@ -7,6 +8,7 @@ import { updatePlanAction } from "../actions";
 export const metadata = { title: "الباقات" };
 
 export default async function AdminPlans() {
+  await requirePerm("settings.manage");
   const plans = await getPlans(true);
   return (
     <>

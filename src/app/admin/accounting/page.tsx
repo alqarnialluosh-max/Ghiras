@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import Link from "next/link";
 import { ActionForm } from "@/components/ActionForm";
 import { PageTitle } from "@/components/DashShell";
@@ -40,6 +41,7 @@ function periodOf(sp: { p?: string; from?: string; to?: string }, today: string)
 export default async function AccountingPage({ searchParams }: {
   searchParams: Promise<{ p?: string; from?: string; to?: string; kind?: string; cat?: string; voided?: string }>;
 }) {
+  await requirePerm("finance.view");
   const sp = await searchParams;
   const today = riyadhDateKey(new Date());
   const period = periodOf(sp, today);

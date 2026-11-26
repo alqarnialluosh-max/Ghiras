@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import { ActionForm } from "@/components/ActionForm";
 import { Empty, PageTitle } from "@/components/DashShell";
 import { SubmitButton } from "@/components/forms";
@@ -12,6 +13,7 @@ const MATCH: Record<string, [string, string]> = {
 };
 
 export default async function AdminPayments({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
+  await requirePerm("subscriptions.manage");
   const all = (await searchParams).all === "1";
   const [events, pending] = await Promise.all([
     q<{ id: string; event: string; order_id: string | null; order_status: string | null; customer_email: string | null;

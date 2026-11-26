@@ -154,3 +154,23 @@ Object.assign(TEMPLATE_LABELS, {
   proposal_teacher: "اقتراح موعد (معلمة)", proposal_parent: "اقتراح موعد (ولي أمر)", request_unplaced: "اختيار موعد آخر",
   admin_request_issue: "تنبيه: طلب حجز",
 });
+
+// ---- Team: tickets and approvals (staff-facing)
+Object.assign(TEMPLATES, {
+  ticket_notice: (p: P) => layout({
+    title: p.title,
+    lines: [p.line, `التذكرة #${p.number} · الدرجة: ${p.severity}`, `الموضوع: ${p.subject}`],
+    cta: { label: "فتح التذكرة", href: absUrl(`/admin/tickets/${p.ticket}`) },
+  }),
+  approval_notice: (p: P) => layout({
+    title: p.title,
+    lines: [p.line],
+    cta: { label: "الاعتمادات", href: absUrl("/admin/approvals") },
+  }),
+  staff_welcome: (p: P) => layout({
+    title: "أُضيف حسابك إلى فريق غِراس",
+    lines: [`أهلاً ${p.name}، أضافك المالك إلى فريق الإدارة بصفة ${p.role}.`, "ستصلك كلمة المرور المؤقتة من المالك مباشرة. غيّرها من «حسابي» بعد أول دخول."],
+    cta: { label: "تسجيل الدخول", href: absUrl("/login") },
+  }),
+});
+Object.assign(TEMPLATE_LABELS, { ticket_notice: "تذكرة دعم (فريق)", approval_notice: "اعتماد (فريق)", staff_welcome: "ترحيب بعضو فريق" });

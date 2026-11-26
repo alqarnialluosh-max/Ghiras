@@ -1,4 +1,5 @@
 import "server-only";
+import { can, type Permission, type StaffRole } from "./permissions";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -10,10 +11,10 @@ import { ipHash, userAgent } from "./request";
 
 export const SESSION_COOKIE = env.isProd ? "__Host-ghiras" : "ghiras";
 /** Families and teachers stay signed in while they keep using the site; the owner's account is shorter-lived. */
-const SESSION_DAYS: Record<Role, number> = { parent: 30, teacher: 30, admin: 3 };
+const SESSION_DAYS: Record<Role, number> = { parent: 30, teacher: 30, admin: 3, staff: 3 };
 export const COOKIE_MAX_DAYS = 30;
 
-export type Role = "parent" | "teacher" | "admin";
+export type Role = "parent" | "teacher" | "admin" | "staff";
 export type SessionUser = {
   id: string;
   role: Role;
@@ -21,6 +22,8 @@ export type SessionUser = {
   full_name: string;
   email: string;
   email_verified: boolean;
+  staff_role: StaffRole | null;
+  permissions: string[] | null;
   session_id: string;
 };
 
@@ -64,7 +67,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   if (!token || token.length > 100) return null;
   const id = sha256(token);
   const row = await one<Omit<SessionUser, "email_verified"> & { expires_at: Date; email_verified_at: Date | null }>(
-    `SELECT u.id, u.role, u.status, u.full_name, u.email, u.email_verified_at, s.id AS session_id, s.expires_at
+    `SELECT u.id, u.role, u.status, u.full_name, u.email, u.email_verified_at, u.staff_role, u.permissions, s.id AS session_id, s.expires_at
        FROM auth_sessions s JOIN users u ON u.id = s.user_id
       WHERE s.id = $1 AND s.revoked_at IS NULL AND s.expires_at > now()
         AND u.archived_at IS NULL AND u.status <> 'suspended'`,
@@ -77,7 +80,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     await q(`UPDATE auth_sessions SET expires_at = now() + make_interval(days => $2) WHERE id = $1`, [id, days]);
   }
   return { id: row.id, role: row.role, status: row.status, full_name: row.full_name, email: row.email,
-    email_verified: !!row.email_verified_at, session_id: row.session_id };
+    email_verified: !!row.email_verified_at, staff_role: row.staff_role, permissions: row.permissions, session_id: row.session_id };
 });
 
 export async function destroySession() {
@@ -92,7 +95,7 @@ export async function revokeAllSessions(userId: string) {
 }
 
 export function homeFor(role: Role) {
-  return role === "admin" ? "/admin" : role === "teacher" ? "/teacher" : "/parent";
+  return role === "admin" || role === "staff" ? "/admin" : role === "teacher" ? "/teacher" : "/parent";
 }
 
 /** Page/action guard. Redirects instead of throwing so users land somewhere sensible. */
@@ -107,4 +110,11 @@ export async function requireRole(...roles: Role[]): Promise<SessionUser> {
 export async function needsEmailVerification(user: SessionUser) {
   const { emailConfigured } = await import("./email");
   return !user.email_verified && emailConfigured();
+}
+
+/** Administration guard: the owner, or a staff member holding at least one of these permissions. */
+export async function requirePerm(...any: Permission[]): Promise<SessionUser> {
+  const user = await requireRole("admin", "staff");
+  if (any.length && !can(user, ...any)) redirect("/admin?denied=1");
+  return user;
 }

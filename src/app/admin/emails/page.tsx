@@ -1,5 +1,5 @@
 import { Empty, PageTitle } from "@/components/DashShell";
-import { requireRole } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { q } from "@/lib/db";
 import { adminRecipient, emailMode } from "@/lib/email";
 import { TEMPLATE_LABELS } from "@/lib/email-templates";
@@ -17,7 +17,7 @@ const STATUS: Record<string, { label: string; tone: string }> = {
 };
 
 export default async function EmailsPage() {
-  const admin = await requireRole("admin");
+  const admin = await requirePerm("settings.manage");
   const mode = emailMode();
   const on = mode !== "off";
   const [counts, rows, unverified] = await Promise.all([

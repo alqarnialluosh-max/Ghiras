@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import { ActionForm } from "@/components/ActionForm";
 import { Empty, PageTitle } from "@/components/DashShell";
 import { SubmitButton } from "@/components/forms";
@@ -13,6 +14,7 @@ import { addManualSubscriptionAction, resetPasswordAction } from "../actions";
 export const metadata = { title: "أولياء الأمور" };
 
 export default async function AdminParents({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  await requirePerm("parents.view");
   const term = ((await searchParams).q ?? "").trim().slice(0, 80);
   const rows = await q<{ id: string; full_name: string; email: string; phone_enc: string | null; created_at: Date;
     last_login_at: Date | null; students: { id: string; name: string; grade: number }[] | null; active_subs: string }>(`

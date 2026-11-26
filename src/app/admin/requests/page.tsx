@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import Link from "next/link";
 import { Empty, PageTitle } from "@/components/DashShell";
 import { StatusChip } from "@/components/SessionCard";
@@ -17,6 +18,7 @@ const SELECT = `SELECT b.id, b.status, b.proposal_stage, b.subject, b.starts_at,
   FROM bookings b JOIN users t ON t.id = b.teacher_id JOIN students s ON s.id = b.student_id JOIN users p ON p.id = b.parent_id`;
 
 export default async function RequestsPage() {
+  await requirePerm("requests.manage");
   const [open, toReview, unplaced, stats] = await Promise.all([
     q<R>(`${SELECT} WHERE b.status IN ('requested','proposed') ORDER BY b.respond_by`),
     q<R>(`${SELECT} WHERE b.decline_kind IN ('teacher','timeout') AND b.decline_reviewed_at IS NULL ORDER BY b.declined_at DESC LIMIT 100`),

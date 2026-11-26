@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import Link from "next/link";
 import { ActionForm } from "@/components/ActionForm";
 import { Empty, PageTitle } from "@/components/DashShell";
@@ -13,6 +14,7 @@ export const metadata = { title: "الاشتراكات" };
 const FILTERS = [["", "الكل"], ["pending_payment", "بانتظار الدفع"], ["active", "فعّالة"], ["expired", "منتهية"]];
 
 export default async function AdminSubscriptions({ searchParams }: { searchParams: Promise<{ status?: string; q?: string }> }) {
+  await requirePerm("subscriptions.manage");
   await expireOverdue();
   const sp = await searchParams;
   const status = FILTERS.some(([k]) => k === sp.status) ? sp.status : "";

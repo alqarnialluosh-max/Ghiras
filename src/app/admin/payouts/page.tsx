@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import { Empty, PageTitle } from "@/components/DashShell";
 import { env } from "@/lib/env";
 import { monthlyEarnings, payoutsFor } from "@/lib/teachers";
@@ -7,6 +8,7 @@ import { recordPayoutAction } from "../actions";
 export const metadata = { title: "أجور المعلمات" };
 
 export default async function AdminPayouts() {
+  await requirePerm("finance.view");
   const rate = env.teacherRateSar;
   const [months, payouts] = await Promise.all([monthlyEarnings(), payoutsFor()]);
   const paidKey = new Set(payouts.map((p) => `${p.teacher_id}:${p.period_month}`));

@@ -8,8 +8,11 @@ import { expireOverdue } from "@/lib/subscriptions";
 import { allTeachers } from "@/lib/teachers";
 import { addDaysKey, riyadhDateKey, riyadhToUtc } from "@/lib/time";
 import { setTeacherStatusAction } from "./actions";
+import { requirePerm } from "@/lib/auth";
+import { can, roleLabel } from "@/lib/permissions";
+import { WorkPanel } from "@/components/WorkPanel";
 
-export const metadata = { title: "لوحة المالك" };
+export const metadata = { title: "الرئيسية" };
 
 function Stat({ label, value, sub, tone }: { label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: "lav" | "sky" | "ok" | "bad" }) {
   const color = tone === "ok" ? "text-ok" : tone === "bad" ? "text-bad" : tone === "sky" ? "text-sky-700" : "text-ink";
@@ -25,7 +28,39 @@ function Stat({ label, value, sub, tone }: { label: string; value: React.ReactNo
 const MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 const monthName = (k: string) => `${MONTHS[Number(k.slice(5, 7)) - 1]} ${k.slice(0, 4)}`;
 
-export default async function OwnerHome() {
+export default async function AdminHome({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
+  const user = await requirePerm();
+  const { denied } = await searchParams;
+  const today = riyadhDateKey(new Date());
+  return (
+    <>
+      {denied && <p role="alert" className="alert alert-error mb-6">لا تملك صلاحية لهذه الصفحة. اطلبها من المالك.</p>}
+      {can(user, "finance.view") ? (
+        <OwnerDashboard work={<WorkPanel user={user} />} />
+      ) : (
+        <>
+          <PageTitle title={`أهلاً ${user.full_name.split(" ")[0]}`} sub={roleLabel(user)} />
+          <WorkPanel user={user} />
+          {can(user, "sessions.view") && <TodaySessions today={today} />}
+        </>
+      )}
+    </>
+  );
+}
+
+async function TodaySessions({ today }: { today: string }) {
+  const todays = await allBookings({ from: riyadhToUtc(today, 0), to: riyadhToUtc(addDaysKey(today, 1), 0) });
+  const live = todays.filter((b) => !["rescheduled", "declined", "not_taken"].includes(b.status));
+  return (
+    <section aria-labelledby="today">
+      <h2 id="today" className="mb-3 text-xl">حصص اليوم ({live.length})</h2>
+      {live.length ? <div className="space-y-3">{live.map((b) => <SessionCard key={b.id} b={b} viewer="admin" />)}</div>
+        : <p className="panel p-5 text-muted">لا توجد حصص اليوم.</p>}
+    </section>
+  );
+}
+
+async function OwnerDashboard({ work }: { work: React.ReactNode }) {
   await expireOverdue();
   const today = riyadhDateKey(new Date());
   const [o, plans, finance, teachers, todays] = await Promise.all([
@@ -40,6 +75,7 @@ export default async function OwnerHome() {
     <>
       <PageTitle title="لوحة المالك" sub="كل أرقام غِراس في مكان واحد. الشهر = الشهر الحالي بتوقيت الرياض."
         action={<Link href="/admin/clients/new" className="btn btn-primary">إنشاء حساب عميل</Link>} />
+      {work}
 
       {(o.unmatched > 0 || o.subsPending > 0) && (
         <ul className="mb-6 space-y-2">

@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import { Empty, PageTitle } from "@/components/DashShell";
 import { q } from "@/lib/db";
 import { SURVEY, label, type SurveyKey } from "@/lib/survey";
@@ -26,6 +27,7 @@ function Bars({ title, rows, total }: { title: string; rows: { value: string; n:
 }
 
 export default async function InsightsPage() {
+  await requirePerm("insights.view");
   const [single, multi, recent, totals] = await Promise.all([
     q<{ k: string; value: string; n: string }>(`
       SELECT 'source' k, source value, count(*) n FROM onboarding_surveys GROUP BY source

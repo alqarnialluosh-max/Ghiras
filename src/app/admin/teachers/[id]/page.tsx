@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import { env } from "@/lib/env";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,6 +16,7 @@ import { recordPayoutAction, setTeacherStatusAction } from "../../actions";
 export const metadata = { title: "ملف المعلمة" };
 
 export default async function TeacherDetail({ params }: { params: Promise<{ id: string }> }) {
+  await requirePerm("teachers.view");
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const [p, stats, months, payouts, phone, sessions] = await Promise.all([

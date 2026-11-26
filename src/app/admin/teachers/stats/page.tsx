@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import { env } from "@/lib/env";
 import Link from "next/link";
 import { Empty, PageTitle } from "@/components/DashShell";
@@ -7,6 +8,7 @@ import { shortDate } from "@/lib/time";
 export const metadata = { title: "حصص ومستحقات المعلمات" };
 
 export default async function TeacherStatsPage() {
+  await requirePerm("finance.view");
   const rows = await teacherStats();
   const totals = rows.reduce((a, r) => ({
     payable: a.payable + r.payable_total, month: a.month + r.payable_month,

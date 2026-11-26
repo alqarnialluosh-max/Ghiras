@@ -1,3 +1,4 @@
+import { requirePerm } from "@/lib/auth";
 import { PageTitle } from "@/components/DashShell";
 import { getPlans, planPrice } from "@/lib/plans";
 import { CreateClientForm } from "./CreateClientForm";
@@ -5,6 +6,7 @@ import { CreateClientForm } from "./CreateClientForm";
 export const metadata = { title: "إنشاء حساب عميل" };
 
 export default async function NewClientPage() {
+  await requirePerm("parents.manage");
   const plans = await getPlans(true);
   return (
     <>
