@@ -10,6 +10,7 @@ import { bookingById } from "@/lib/queries";
 import { allTeachers } from "@/lib/teachers";
 import { riyadhDateKey } from "@/lib/time";
 import { rescheduleAction, setBookingStatusAction } from "../../actions";
+import { FamilyGoals } from "@/components/FamilyGoals";
 
 export const metadata = { title: "حصة" };
 
@@ -35,6 +36,7 @@ export default async function AdminBooking({ params, searchParams }: {
       {origin && <p className="alert alert-info mb-4">هذه الحصة بديلة عن <Link href={`/admin/bookings/${origin.id}`} className="underline">حصة أعيدت جدولتها</Link>.</p>}
       {b.replaced_by && <p className="alert alert-info mb-4">أعيدت جدولة هذه الحصة إلى <Link href={`/admin/bookings/${b.replaced_by}`} className="underline">الموعد الجديد</Link>.</p>}
       <SessionDetail b={b} viewer="admin" studentNotes={decrypt(st?.notes_enc)}>
+        <FamilyGoals parentId={b.parent_id} />
         {b.status !== "rescheduled" && (
           <div className="mt-8 grid gap-6 border-t border-line pt-6 md:grid-cols-2">
             <section>

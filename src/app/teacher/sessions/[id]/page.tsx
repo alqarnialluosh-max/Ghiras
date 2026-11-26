@@ -6,6 +6,7 @@ import { decrypt } from "@/lib/crypto";
 import { one } from "@/lib/db";
 import { bookingById } from "@/lib/queries";
 import { SessionReportForm } from "./SessionReportForm";
+import { FamilyGoals } from "@/components/FamilyGoals";
 
 export const metadata = { title: "تفاصيل الحصة" };
 
@@ -22,6 +23,7 @@ export default async function TeacherSession({ params }: { params: Promise<{ id:
     <>
       <Link href="/teacher/sessions" className="mb-4 inline-block text-[.95rem] text-lav-700 underline">كل الحصص</Link>
       <SessionDetail b={b} viewer="teacher" studentNotes={decrypt(st?.notes_enc)}>
+        <FamilyGoals parentId={b.parent_id} />
         {editable && (
           <section className="mt-8 border-t border-line pt-6">
             <h2 className="text-lg font-semibold">الحضور والملاحظات</h2>

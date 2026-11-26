@@ -79,7 +79,8 @@ export async function registerParentAction(_: ActionState, fd: FormData): Promis
   }
   await audit("user.register", "user", userId, userId, { role: "parent" });
   await createSession(userId);
-  redirect(safeNext(fd.get("next")) ?? "/parent?welcome=1");
+  const next = safeNext(fd.get("next"));
+  redirect(`/parent/welcome${next ? `?next=${encodeURIComponent(next)}` : ""}`);
 }
 
 export async function registerTeacherAction(_: ActionState, fd: FormData): Promise<ActionState> {

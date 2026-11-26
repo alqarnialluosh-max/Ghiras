@@ -111,3 +111,8 @@
   * { scroll-behavior: auto !important; }
 }
 html { scroll-behavior: smooth; }
+
+/* Survey: each question slides in when the parent moves forward (user-triggered) */
+@keyframes step-in { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+.survey-step { animation: step-in .28s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .survey-step { animation: none; } }

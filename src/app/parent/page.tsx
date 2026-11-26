@@ -7,12 +7,14 @@ import { getPlans } from "@/lib/plans";
 import { bookingsFor, studentsOf } from "@/lib/queries";
 import { parentSubscriptions, remainingFor } from "@/lib/subscriptions";
 import { shortDate } from "@/lib/time";
+import { one } from "@/lib/db";
 
 export default async function ParentHome({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
   const user = await requireRole("parent");
   const { welcome } = await searchParams;
-  const [students, subs, upcoming, plans] = await Promise.all([
+  const [students, subs, upcoming, plans, survey] = await Promise.all([
     studentsOf(user.id), parentSubscriptions(user.id), bookingsFor("parent", user.id, "upcoming", 5), getPlans(),
+    one(`SELECT 1 FROM onboarding_surveys WHERE user_id = $1`, [user.id]),
   ]);
   const active = subs.filter((s) => s.status === "active");
   const pending = subs.filter((s) => s.status === "pending_payment");
@@ -23,6 +25,13 @@ export default async function ParentHome({ searchParams }: { searchParams: Promi
     <>
       <PageTitle title={`أهلاً ${first}`} sub={welcome ? "حسابك جاهز. الخطوة التالية: أضف ابنك أو ابنتك." : "هذه خلاصة حصص أبنائك."}
         action={active.length > 0 && <Link href="/parent/book" className="btn btn-primary">احجز حصة</Link>} />
+
+      {!survey && (
+        <div className="panel mb-6 flex flex-col items-start gap-3 border-sky-300 bg-sky-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <p><span className="font-medium">أخبرنا عن هدفك في دقيقة واحدة</span> <span className="text-muted">لتبني المعلمة الحصص عليه من البداية.</span></p>
+          <Link href="/parent/welcome" className="btn btn-sky btn-sm">ابدأ الاستبيان</Link>
+        </div>
+      )}
 
       {students.length === 0 && (
         <div className="panel mb-8 flex flex-col items-start gap-4 bg-lav-100/50 p-6 sm:flex-row sm:items-center sm:justify-between">

@@ -105,8 +105,10 @@ async def main():
         # 4) Reschedule → old meeting cancelled, new one created
         old_event = sql(f"SELECT teams_event_id FROM bookings WHERE id='{bid}'")
         await a.goto(f"{BASE}/admin/bookings/{bid}")
-        day = sql("SELECT to_char((now() AT TIME ZONE 'Asia/Riyadh')::date + 5, 'YYYY-MM-DD')")
-        await a.fill("input[name=date]", day); await a.fill("input[name=time]", "18:00")
+        # a fresh slot per run so repeated runs on the same day don't collide (the conflict guard would rightly refuse)
+        off, hour = random.randint(5, 25), random.randint(8, 21)
+        day = sql(f"SELECT to_char((now() AT TIME ZONE 'Asia/Riyadh')::date + {off}, 'YYYY-MM-DD')")
+        await a.fill("input[name=date]", day); await a.fill("input[name=time]", f"{hour:02d}:00")
         await a.fill("input[name=note]", "اختبار إعادة الجدولة")
         await a.click("button:has-text('أعد الجدولة')"); await a.wait_for_url("**/admin/bookings/*?rescheduled=1")
         new_id = a.url.split("/bookings/")[1].split("?")[0]

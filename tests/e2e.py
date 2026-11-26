@@ -116,8 +116,16 @@ async def main():
         await pg.fill("#f-password", PW)
         await pg.check("input[name=consent]")
         await pg.click("button[type=submit]")
+        await pg.wait_for_url(f"{BASE}/parent/welcome")
+        step("parent registered → survey shown")
+        await pg.click("button:has-text('صديق أو قريب')"); await pg.click("button:has-text('التالي')")
+        await pg.click("button:has-text('سد الفجوات والتأسيس')"); await pg.click("button:has-text('التالي')")
+        await pg.click("button:has-text('الرياضيات')"); await pg.click("button:has-text('أخرى')")
+        await pg.fill("#other-needs", "الكسور تحديداً"); await pg.click("button:has-text('التالي')")
+        await pg.click("button:has-text('فهم أعمق بدل الحفظ')"); await pg.click("button:has-text('إنهاء')")
         await pg.wait_for_url(f"{BASE}/parent?welcome=1")
-        step("parent registered")
+        assert await pg.locator("text=أخبرنا عن هدفك").count() == 0
+        step("survey saved, dashboard nudge gone")
 
         await pg.goto(f"{BASE}/parent/students")
         await pg.locator("section", has_text="إضافة طالب").locator("#f-full_name").fill("سارة")
@@ -192,6 +200,8 @@ async def main():
         await t.goto(f"{BASE}/teacher/sessions/{bid}")
         await expect(t.get_by_text("تحتاج تأسيس في الكسور")).to_be_visible()
         await expect(t.get_by_text("مراجعة الكسور العشرية")).to_be_visible()
+        await expect(t.get_by_text("هدف الأسرة من غِراس")).to_be_visible()
+        await expect(t.get_by_text("الكسور تحديداً")).to_be_visible()
         await t.screenshot(path="/tmp/s_session_teacher.png", full_page=True)
         step("teacher sees session, description, encrypted student notes (decrypted for her)")
 
@@ -268,6 +278,12 @@ async def main():
         await expect(a.get_by_text(f"أم فيصل {R}")).to_be_visible()
         await a.screenshot(path="/tmp/s_owner_subs.png", full_page=True)
         step("subscribers page lists the new client")
+
+        await a.goto(f"{BASE}/admin/insights")
+        await expect(a.get_by_text("أي قناة تجلب مشتركين فعلاً؟")).to_be_visible()
+        await expect(a.get_by_role("cell", name="محمد القحطاني").first).to_be_visible()
+        await a.screenshot(path="/tmp/s_insights.png", full_page=True)
+        step("owner sees survey insights + conversion by channel")
 
         audit = sql("SELECT count(*) FROM audit_log WHERE action IN ('admin.create_client','payout.record')").stdout.strip()
         assert int(audit) >= 2
