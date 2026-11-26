@@ -28,7 +28,20 @@ export const BOOKING_STATUS: Record<string, string> = {
   student_absent: "غياب الطالب",
   teacher_absent: "غياب المعلمة",
   rescheduled: "أعيدت جدولتها",
+  requested: "بانتظار تأكيد المعلمة",
+  proposed: "موعد بديل مقترح",
+  declined: "لم تؤكدها المعلمة",
+  not_taken: "لم تُحجز",
 };
+
+/** Rows that no longer hold a time slot or a session credit. */
+export const DEAD_STATUSES = ["rescheduled", "declined", "not_taken"] as const;
+/** Requests still waiting for an answer: they hold the slot and the credit. */
+export const OPEN_STATUSES = ["requested", "proposed"] as const;
+/** Hours the teacher has to accept or decline a request. */
+export const TEACHER_RESPONSE_HOURS = 3;
+/** Hours the parent has to answer a proposed alternative time. */
+export const PARENT_RESPONSE_HOURS = 24;
 
 export const SUB_STATUS: Record<string, string> = {
   pending_payment: "بانتظار تأكيد الدفع",
@@ -43,8 +56,8 @@ export const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "ا
 export const SESSION_MINUTES = 60;
 /** Slot granularity for start times. */
 export const SLOT_STEP_MINUTES = 30;
-/** Bookings must be made at least this many hours ahead. */
-export const MIN_LEAD_HOURS = 3;
+/** Requests must be made at least this many hours ahead (room for the teacher to answer, or an alternative). */
+export const MIN_LEAD_HOURS = 12;
 /** Booking window shown to parents. */
 export const BOOKING_HORIZON_DAYS = 21;
 /** Join button opens this many minutes before start. */

@@ -43,7 +43,7 @@ export function BookConfirm({ subscriptionId, studentId, subject, date, minute, 
 
       <div className="flex flex-col gap-3 rounded-2xl bg-wash p-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-[.95rem]">{summary}</p>
-        <SubmitButton className="btn btn-primary" pending="جارٍ الحجز...">أكّد الحجز</SubmitButton>
+        <SubmitButton className="btn btn-primary" pending="جارٍ الإرسال...">أرسل طلب الحجز</SubmitButton>
       </div>
       <p className="text-sm text-muted">لا تُلغى الحصص المؤكدة من الموقع. وإذا طرأ ظرف، تواصل مع الإدارة قبل الموعد لإعادة الجدولة.</p>
     </form>

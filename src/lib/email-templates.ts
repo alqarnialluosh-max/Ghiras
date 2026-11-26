@@ -105,3 +105,52 @@ export const TEMPLATE_LABELS: Record<string, string> = {
   subscription_active: "تفعيل اشتراك", teacher_received: "استلام طلب معلمة", teacher_approved: "اعتماد معلمة",
   admin_new_teacher: "تنبيه: معلمة جديدة", admin_new_subscription: "تنبيه: اشتراك جديد", test: "تجريبية",
 };
+
+// ---- Booking requests (teacher accepts; alternatives proposed when needed)
+Object.assign(TEMPLATES, {
+  request_teacher: (p: P) => layout({
+    title: `طلب حصة جديد: ${p.subject} · ${p.date}`,
+    lines: [`أهلاً ${p.name}،`, `يطلب ${p.student} (${p.grade}) حصة معكِ يوم ${p.date} الساعة ${p.time} بتوقيت الرياض.`,
+      `يُرجى القبول أو الاعتذار خلال ${p.hours} ساعات، وإلا يتحول الطلب تلقائياً لمعلمة أخرى.`],
+    cta: { label: "الرد على الطلب", href: absUrl(`/teacher/sessions/${p.booking}`) },
+  }),
+  request_parent: (p: P) => layout({
+    title: `استلمنا طلب حصة ${p.student}`,
+    lines: [`${p.subject} يوم ${p.date} الساعة ${p.time} مع ${p.teacher}.`,
+      `تؤكد المعلمة خلال ${p.hours} ساعات، ونرسل لك رابط Teams فور التأكيد. ولن تُخصم الحصة من رصيدك إلا بعد التأكيد.`],
+    cta: { label: "متابعة الطلب", href: absUrl(`/parent/sessions/${p.booking}`) },
+  }),
+  request_moved: (p: P) => layout({
+    title: `حوّلنا طلب ${p.student} إلى ${p.teacher}`,
+    lines: [`لم تتمكن المعلمة السابقة من تأكيد الموعد، فحوّلنا طلبك تلقائياً إلى ${p.teacher} في الموعد نفسه: ${p.date}، الساعة ${p.time}.`,
+      "سنرسل لك رابط Teams فور التأكيد."],
+    cta: { label: "متابعة الطلب", href: absUrl(`/parent/sessions/${p.booking}`) },
+  }),
+  proposal_teacher: (p: P) => layout({
+    title: `هل يناسبكِ موعد ${p.date} الساعة ${p.time}؟`,
+    lines: [`أهلاً ${p.name}،`, `طلب ${p.student} (${p.grade}) حصة ${p.subject} في وقت لم يعد متاحاً، وأقرب موعد متاح في جدولكِ هو ${p.date} الساعة ${p.time}.`,
+      `إذا وافقتِ نعرضه على ولي الأمر. يُرجى الرد خلال ${p.hours} ساعات.`],
+    cta: { label: "الرد على الاقتراح", href: absUrl(`/teacher/sessions/${p.booking}`) },
+  }),
+  proposal_parent: (p: P) => layout({
+    title: `موعد بديل لحصة ${p.student}`,
+    lines: [`الموعد الذي طلبته لم يعد متاحاً، ووافقت ${p.teacher} على أقرب موعد: ${p.date}، الساعة ${p.time} بتوقيت الرياض.`,
+      "إذا ناسبك فأكّده من صفحة الحصة. وإن لم يناسبك فاختر الموعد الذي تريده، وحصتك محفوظة في رصيدك."],
+    cta: { label: "تأكيد الموعد أو اختيار غيره", href: absUrl(`/parent/sessions/${p.booking}`) },
+  }),
+  request_unplaced: (p: P) => layout({
+    title: `اختر موعداً يناسبك لحصة ${p.student}`,
+    lines: [p.reason, "حصتك محفوظة في رصيدك كاملة، ويمكنك اختيار يوم ووقت آخرين الآن."],
+    cta: { label: "اختيار موعد", href: absUrl("/parent/book") },
+  }),
+  admin_request_issue: (p: P) => layout({
+    title: p.title,
+    lines: [p.detail, ...(p.reason ? [`السبب: ${p.reason}`] : [])],
+    cta: { label: "طلبات الحجز", href: absUrl("/admin/requests") },
+  }),
+});
+Object.assign(TEMPLATE_LABELS, {
+  request_teacher: "طلب حصة (معلمة)", request_parent: "استلام طلب (ولي أمر)", request_moved: "تحويل الطلب لمعلمة أخرى",
+  proposal_teacher: "اقتراح موعد (معلمة)", proposal_parent: "اقتراح موعد (ولي أمر)", request_unplaced: "اختيار موعد آخر",
+  admin_request_issue: "تنبيه: طلب حجز",
+});

@@ -136,11 +136,15 @@ async def main():
         await c.locator("a[href*='date=']").nth(2).click(); await c.wait_for_load_state("networkidle")
         await c.locator("a[href*='minute=']").first.click(); await c.wait_for_load_state("networkidle")
         await c.locator("label", has_text=TNAME).click(); await c.fill("#description", "حصة اختبار البريد")
-        await c.click("button:has-text('أكّد الحجز')"); await c.wait_for_url("**/parent/sessions/*?booked=1")
+        await c.click("button:has-text('أرسل طلب الحجز')"); await c.wait_for_url("**/parent/sessions/*?requested=1")
         bid = c.url.split("/sessions/")[1].split("?")[0]
-        pm = wait_mail(C_EMAIL, "تم حجز حصة"); tm = wait_mail(T_EMAIL, "حصة جديدة")
-        assert f"/parent/sessions/{bid}" in pm["html"] and f"/teacher/sessions/{bid}" in tm["html"] and TNAME in pm["text"]
-        step("owner-made client is pre-verified; activation + owner alert; booking emails to parent and teacher")
+        tm = wait_mail(T_EMAIL, "طلب حصة جديد"); rm = wait_mail(C_EMAIL, "استلمنا طلب حصة")
+        assert f"/teacher/sessions/{bid}" in tm["html"] and "3 ساعات" in tm["text"] and f"/parent/sessions/{bid}" in rm["html"]
+        await t.goto(f"{BASE}/teacher/sessions/{bid}"); await t.click("button:has-text('قبول الحصة')")
+        await expect(t.get_by_text("تم قبول الحصة")).to_be_visible()
+        pm = wait_mail(C_EMAIL, "تم حجز حصة")
+        assert f"/parent/sessions/{bid}" in pm["html"] and TNAME in pm["text"]
+        step("owner-made client is pre-verified; activation + owner alert; request → teacher, receipt → parent, confirmation after accept")
 
         # ---------- 5) Reminder ~2h before, sent once
         tid = sql(f"SELECT id FROM users WHERE email='{T_EMAIL}'")

@@ -1,17 +1,19 @@
 import "server-only";
-import { kickOutbox, queueBookingEmails, queueRescheduleEmails } from "./email";
+import { kickOutbox, queueRequestEmails, queueRescheduleEmails } from "./email";
 import type { PoolClient } from "pg";
 import { isExclusionViolation, q, tx } from "./db";
 import { audit } from "./audit";
 import { cancelMeeting, ensureBookingMeeting, teamsAutoConfigured } from "./teams";
 import {
-  BOOKING_HORIZON_DAYS, MIN_LEAD_HOURS, SESSION_MINUTES, SLOT_STEP_MINUTES,
+  BOOKING_HORIZON_DAYS, DEAD_STATUSES, MIN_LEAD_HOURS, OPEN_STATUSES, SESSION_MINUTES, SLOT_STEP_MINUTES, TEACHER_RESPONSE_HOURS,
   type Subject, type Track,
 } from "./domain";
 import { addDaysKey, riyadhDateKey, riyadhParts, riyadhToUtc, weekStartKey, weekdayOfKey } from "./time";
 
 /** Statuses that consume a session credit. */
 export const CONSUMING = ["scheduled", "completed", "student_absent"] as const;
+/** Statuses that hold a credit right now: consumed ones plus requests still being answered. */
+export const HOLDING = [...CONSUMING, ...OPEN_STATUSES] as const;
 
 export type Sub = {
   id: string; parent_id: string; student_id: string; subject: Subject | null; track: Track;
@@ -28,25 +30,25 @@ type Runner = Pick<PoolClient, "query">;
 export async function usedSessions(r: Runner, subId: string) {
   const { rows } = await r.query<{ n: string }>(
     `SELECT count(*) AS n FROM bookings WHERE subscription_id = $1 AND status = ANY($2::booking_status[])`,
-    [subId, CONSUMING],
+    [subId, HOLDING],
   );
   return Number(rows[0].n);
 }
 
-async function weekUsage(r: Runner, subId: string, weekKey: string) {
+export async function weekUsage(r: Runner, subId: string, weekKey: string) {
   const from = riyadhToUtc(weekKey, 0);
   const to = riyadhToUtc(addDaysKey(weekKey, 7), 0);
   const { rows } = await r.query<{ n: string }>(
     `SELECT count(*) AS n FROM bookings
       WHERE subscription_id = $1 AND status = ANY($2::booking_status[])
         AND starts_at >= $3 AND starts_at < $4`,
-    [subId, CONSUMING, from, to],
+    [subId, HOLDING, from, to],
   );
   return Number(rows[0].n);
 }
 
 /** The bonus (free first session) is usable in the first week on top of the weekly limit. */
-function weeklyAllowance(sub: Sub, weekKey: string) {
+export function weeklyAllowance(sub: Sub, weekKey: string) {
   if (sub.weekly_limit == null) return Infinity;
   const firstWeek = sub.starts_at ? weekStartKey(sub.starts_at) === weekKey : false;
   return sub.weekly_limit + (firstWeek ? sub.bonus_sessions : 0);
@@ -77,59 +79,91 @@ export function bookableDays(sub: Sub, now = new Date()): string[] {
 export type SlotMap = Map<number, string[]>; // start minute (Riyadh) → teacher ids free then
 
 /**
- * Free start times on a given Riyadh day for a subject/grade.
+ * Free start times per Riyadh day for a subject/grade, across a range of days, in three queries.
  * Final safety is enforced by the DB exclusion constraints; this is the friendly preview.
+ * `earliest` defaults to now + MIN_LEAD_HOURS; `teacherIds` narrows the candidates.
  */
-export async function availableSlots(opts: {
-  sub: Sub; studentId: string; grade: number; subject: Subject; dateKey: string; now?: Date;
-}): Promise<SlotMap> {
-  const { sub, studentId, grade, subject, dateKey } = opts;
+export async function slotsForRange(opts: {
+  sub: Sub; studentId: string; grade: number; subject: Subject; fromKey: string; toKey: string;
+  now?: Date; earliest?: Date; teacherIds?: string[]; runner?: Runner;
+}): Promise<Map<string, SlotMap>> {
+  const { sub, studentId, grade, subject, fromKey, toKey } = opts;
+  const r: Runner = opts.runner ?? { query: (text: string, params?: unknown[]) => q(text, params).then((rows) => ({ rows })) } as Runner;
   const now = opts.now ?? new Date();
-  const out: SlotMap = new Map();
-  if (sub.status !== "active" || !sub.starts_at || !sub.ends_at) return out;
+  const result = new Map<string, SlotMap>();
+  if (sub.status !== "active" || !sub.starts_at || !sub.ends_at || fromKey > toKey) return result;
 
-  const teachers = await eligibleTeachers(subject, grade);
-  if (!teachers.length) return out;
-  const ids = teachers.map((t) => t.id);
-  const dayStart = riyadhToUtc(dateKey, 0);
-  const dayEnd = riyadhToUtc(addDaysKey(dateKey, 1), 0);
-  const weekday = weekdayOfKey(dateKey);
+  let teachers = (await eligibleTeachers(subject, grade)).map((t) => t.id);
+  if (opts.teacherIds) teachers = teachers.filter((id) => opts.teacherIds!.includes(id));
+  if (!teachers.length) return result;
+  const rangeStart = riyadhToUtc(fromKey, 0);
+  const rangeEnd = riyadhToUtc(addDaysKey(toKey, 1), 0);
 
-  const [rules, blocks, studentBusy] = await Promise.all([
-    q<{ teacher_id: string; start_minute: number; end_minute: number }>(
-      `SELECT teacher_id, start_minute, end_minute FROM availability_rules
-        WHERE active AND weekday = $1 AND teacher_id = ANY($2::uuid[])`, [weekday, ids]),
-    q<{ teacher_id: string; s: Date; e: Date }>(
+  const [{ rows: rules }, { rows: blocks }, { rows: studentBusy }] = await Promise.all([
+    r.query<{ teacher_id: string; weekday: number; start_minute: number; end_minute: number }>(
+      `SELECT teacher_id, weekday, start_minute, end_minute FROM availability_rules WHERE active AND teacher_id = ANY($1::uuid[])`, [teachers]),
+    r.query<{ teacher_id: string; s: Date; e: Date }>(
       `SELECT teacher_id, starts_at AS s, ends_at AS e FROM bookings
-        WHERE teacher_id = ANY($1::uuid[]) AND status <> 'rescheduled' AND starts_at < $3 AND ends_at > $2
+        WHERE teacher_id = ANY($1::uuid[]) AND status <> ALL($4::booking_status[]) AND starts_at < $3 AND ends_at > $2
        UNION ALL
        SELECT teacher_id, lower(during), upper(during) FROM availability_exceptions
         WHERE active AND teacher_id = ANY($1::uuid[]) AND during && tstzrange($2, $3)`,
-      [ids, dayStart, dayEnd]),
-    q<{ s: Date; e: Date }>(
+      [teachers, rangeStart, rangeEnd, DEAD_STATUSES]),
+    r.query<{ s: Date; e: Date }>(
       `SELECT starts_at AS s, ends_at AS e FROM bookings
-        WHERE student_id = $1 AND status <> 'rescheduled' AND starts_at < $3 AND ends_at > $2`,
-      [studentId, dayStart, dayEnd]),
+        WHERE student_id = $1 AND status <> ALL($4::booking_status[]) AND starts_at < $3 AND ends_at > $2`,
+      [studentId, rangeStart, rangeEnd, DEAD_STATUSES]),
   ]);
 
-  const earliest = now.getTime() + MIN_LEAD_HOURS * 3600_000;
+  const earliest = (opts.earliest ?? new Date(now.getTime() + MIN_LEAD_HOURS * 3600_000)).getTime();
   const overlaps = (s: number, e: number, list: { s: Date; e: Date }[]) =>
     list.some((b) => s < b.e.getTime() && e > b.s.getTime());
 
-  for (const rule of rules) {
-    const busy = blocks.filter((b) => b.teacher_id === rule.teacher_id);
-    for (let m = rule.start_minute; m + SESSION_MINUTES <= rule.end_minute; m += SLOT_STEP_MINUTES) {
-      const s = riyadhToUtc(dateKey, m).getTime();
-      const e = s + SESSION_MINUTES * 60_000;
-      if (s < earliest) continue;
-      if (s < sub.starts_at.getTime() || e > sub.ends_at.getTime()) continue;
-      if (overlaps(s, e, busy) || overlaps(s, e, studentBusy)) continue;
-      const list = out.get(m) ?? [];
-      if (!list.includes(rule.teacher_id)) list.push(rule.teacher_id);
-      out.set(m, list);
+  for (let dateKey = fromKey; dateKey <= toKey; dateKey = addDaysKey(dateKey, 1)) {
+    const weekday = weekdayOfKey(dateKey);
+    const out: SlotMap = new Map();
+    for (const rule of rules.filter((x) => x.weekday === weekday)) {
+      const busy = blocks.filter((b) => b.teacher_id === rule.teacher_id);
+      for (let m = rule.start_minute; m + SESSION_MINUTES <= rule.end_minute; m += SLOT_STEP_MINUTES) {
+        const s = riyadhToUtc(dateKey, m).getTime();
+        const e = s + SESSION_MINUTES * 60_000;
+        if (s < earliest) continue;
+        if (s < sub.starts_at.getTime() || e > sub.ends_at.getTime()) continue;
+        if (overlaps(s, e, busy) || overlaps(s, e, studentBusy)) continue;
+        const list = out.get(m) ?? [];
+        if (!list.includes(rule.teacher_id)) list.push(rule.teacher_id);
+        out.set(m, list);
+      }
     }
+    result.set(dateKey, new Map([...out.entries()].sort((x, y) => x[0] - y[0])));
   }
-  return new Map([...out.entries()].sort((a, b) => a[0] - b[0]));
+  return result;
+}
+
+export async function availableSlots(opts: {
+  sub: Sub; studentId: string; grade: number; subject: Subject; dateKey: string; now?: Date;
+}): Promise<SlotMap> {
+  const m = await slotsForRange({ ...opts, fromKey: opts.dateKey, toKey: opts.dateKey });
+  return m.get(opts.dateKey) ?? new Map();
+}
+
+export type DayState = "open" | "full" | "week_full";
+
+/** For the calendar: which days can still take a request, and why the others can't. */
+export async function dayStates(opts: { sub: Sub; studentId: string; grade: number; subject: Subject; days: string[] }) {
+  const states = new Map<string, DayState>();
+  if (!opts.days.length) return states;
+  const slots = await slotsForRange({ ...opts, fromKey: opts.days[0], toKey: opts.days[opts.days.length - 1] });
+  const weekFull = new Map<string, boolean>();
+  for (const d of opts.days) {
+    const wk = weekStartKey(riyadhToUtc(d, 12 * 60));
+    if (!weekFull.has(wk)) {
+      const used = await weekUsage({ query: (t: string, p?: unknown[]) => q(t, p).then((rows) => ({ rows })) } as Runner, opts.sub.id, wk);
+      weekFull.set(wk, used >= weeklyAllowance(opts.sub, wk));
+    }
+    states.set(d, weekFull.get(wk) ? "week_full" : (slots.get(d)?.size ?? 0) > 0 ? "open" : "full");
+  }
+  return states;
 }
 
 export async function subscriptionHeadroom(r: Runner, sub: Sub, startsAt: Date) {
@@ -162,6 +196,7 @@ export async function adminReschedule(input: {
       const old = rows[0];
       if (!old) throw new BookingError("الحصة غير موجودة.");
       if (old.status === "rescheduled") throw new BookingError("هذه الحصة أعيدت جدولتها من قبل.");
+      if ((DEAD_STATUSES as readonly string[]).includes(old.status)) throw new BookingError("هذا الطلب مغلق، ولا يمكن إعادة جدولته.");
       const auto = teamsAutoConfigured();
       const { rows: t } = await c.query<{ teams_link: string | null }>(
         `SELECT p.teams_link FROM users u JOIN teacher_profiles p ON p.user_id = u.id
@@ -223,7 +258,7 @@ export async function createBooking(input: {
       if (!sub.starts_at || !sub.ends_at || startsAt < sub.starts_at || endsAt > sub.ends_at)
         throw new BookingError("الموعد خارج فترة الاشتراك.");
       if (startsAt.getTime() < Date.now() + MIN_LEAD_HOURS * 3600_000)
-        throw new BookingError(`الحجز يكون قبل الموعد بـ${MIN_LEAD_HOURS} ساعات على الأقل.`);
+        throw new BookingError(`الحجز يكون قبل الموعد بـ${MIN_LEAD_HOURS} ساعة على الأقل.`);
       if (input.startMinute % SLOT_STEP_MINUTES !== 0) throw new BookingError("وقت غير صالح.");
 
       const head = await subscriptionHeadroom(c, sub, startsAt);
@@ -262,15 +297,17 @@ export async function createBooking(input: {
       if (off[0]) throw new BookingError("المعلمة في إجازة بهذا الوقت.");
 
       const { rows: ins } = await c.query<{ id: string }>(
+        // A request: holds the slot and the credit until the teacher answers (TEACHER_RESPONSE_HOURS).
         `INSERT INTO bookings (subscription_id, parent_id, student_id, teacher_id, subject, track,
-                               starts_at, ends_at, description, teams_link, teams_source, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+                               starts_at, ends_at, description, teams_link, teams_source, created_by, status, respond_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'requested', now() + make_interval(hours => $13)) RETURNING id`,
         [sub.id, input.parentId, input.studentId, input.teacherId, input.subject, sub.track,
-         startsAt, endsAt, input.description.slice(0, 1000), t[0].teams_link ?? "", auto ? "pending" : "teacher_link", input.actorId],
+         startsAt, endsAt, input.description.slice(0, 1000), t[0].teams_link ?? "", auto ? "pending" : "teacher_link", input.actorId,
+         TEACHER_RESPONSE_HOURS],
       );
-      await audit("booking.create", "booking", ins[0].id, input.actorId,
+      await audit("booking.request", "booking", ins[0].id, input.actorId,
         { teacher: input.teacherId, starts_at: startsAt.toISOString(), subscription: sub.id }, c);
-      await queueBookingEmails(c, ins[0].id);
+      await queueRequestEmails(c, ins[0].id);
       return ins[0].id;
     });
     await kickOutbox();

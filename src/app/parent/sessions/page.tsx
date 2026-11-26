@@ -1,5 +1,6 @@
 import { Empty, PageTitle } from "@/components/DashShell";
 import { SessionCard } from "@/components/SessionCard";
+import { ParentRequests } from "@/components/ParentRequests";
 import { requireRole } from "@/lib/auth";
 import { bookingsFor } from "@/lib/queries";
 
@@ -13,6 +14,7 @@ export default async function ParentSessions() {
   return (
     <>
       <PageTitle title="الحصص" sub="كل حصة محفوظة في سجل الطالب مع ملاحظات المعلمة." />
+      <ParentRequests parentId={user.id} />
       <section className="mb-10" aria-labelledby="u">
         <h2 id="u" className="mb-3 text-xl">القادمة</h2>
         {upcoming.length ? <div className="space-y-3">{upcoming.map((b) => <SessionCard key={b.id} b={b} viewer="parent" />)}</div>

@@ -245,3 +245,22 @@ export async function kickOutbox() {
     void run();
   }
 }
+
+/** Queue a booking-related template to the parent or the teacher of a booking. */
+export async function queueForBooking(c: Runner, bookingId: string, to: "parent" | "teacher", template: string,
+  extra: Record<string, string> = {}, dedupe = `${template}:${bookingId}:${to}`) {
+  const b = await bookingRow(c, bookingId);
+  if (!b) return;
+  const params = { ...common(b), ...(to === "teacher" ? { name: firstName(b.teacher_name) } : {}), ...extra };
+  await enqueue(c, to === "parent"
+    ? { userId: b.parent_id, to: b.parent_email, template, params, dedupeKey: dedupe }
+    : { userId: b.teacher_id, to: b.teacher_email, template, params, dedupeKey: dedupe });
+}
+
+/** New request: the teacher must answer; the parent gets a receipt. */
+export async function queueRequestEmails(c: Runner, bookingId: string) {
+  const { TEACHER_RESPONSE_HOURS } = await import("./domain");
+  const hours = String(TEACHER_RESPONSE_HOURS);
+  await queueForBooking(c, bookingId, "teacher", "request_teacher", { hours });
+  await queueForBooking(c, bookingId, "parent", "request_parent", { hours });
+}

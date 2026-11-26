@@ -5,14 +5,14 @@ import { needsEmailVerification, requireRole } from "@/lib/auth";
 import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
 import { one } from "@/lib/db";
 import { env } from "@/lib/env";
-import { bookingsFor } from "@/lib/queries";
+import { bookingsFor, openRequestsFor } from "@/lib/queries";
 import { teacherProfile, PAYABLE } from "@/lib/teachers";
 import { site } from "@/config/site";
 import { teamsAutoConfigured } from "@/lib/teams";
 
 export default async function TeacherHome() {
   const user = await requireRole("teacher");
-  const [profile, upcoming, rules, month] = await Promise.all([
+  const [profile, upcoming, rules, month, requests] = await Promise.all([
     teacherProfile(user.id),
     bookingsFor("teacher", user.id, "upcoming", 6),
     one<{ n: string }>(`SELECT count(*) n FROM availability_rules WHERE teacher_id = $1 AND active`, [user.id]),
@@ -20,6 +20,7 @@ export default async function TeacherHome() {
       `SELECT count(*) n FROM bookings WHERE teacher_id = $1 AND status = ANY($2::booking_status[])
           AND date_trunc('month', starts_at AT TIME ZONE 'Asia/Riyadh') = date_trunc('month', now() AT TIME ZONE 'Asia/Riyadh')`,
       [user.id, PAYABLE]),
+    openRequestsFor("teacher", user.id),
   ]);
   const approved = !!profile?.approved_at && user.status === "active";
   const missing = [
@@ -37,6 +38,13 @@ export default async function TeacherHome() {
           <p className="font-medium">طلبك قيد المراجعة</p>
           <p className="mt-1 text-muted">تراجع {site.supervisor.name} طلبك، وبعد الموافقة ستظهرين لأولياء الأمور. يمكنك تجهيز ملفك وأوقاتك من الآن.</p>
         </div>
+      )}
+
+      {requests.length > 0 && (
+        <section aria-labelledby="req" className="mb-10">
+          <h2 id="req" className="mb-3 text-xl">طلبات بانتظار ردكِ ({requests.length})</h2>
+          <div className="space-y-3">{requests.map((b) => <SessionCard key={b.id} b={b} viewer="teacher" />)}</div>
+        </section>
       )}
 
       {missing.length > 0 && (

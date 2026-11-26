@@ -9,6 +9,7 @@ const NAV = [
   { href: "/admin/subscribers", label: "المشتركين" },
   { href: "/admin/insights", label: "استبيان التسجيل" },
   { href: "/admin/emails", label: "البريد" },
+  { href: "/admin/requests", label: "طلبات الحجز" },
   { href: "/admin/subscriptions", label: "الاشتراكات" },
   { href: "/admin/salla", label: "ربط سلة" },
   { href: "/admin/teams", label: "ربط تيمز" },

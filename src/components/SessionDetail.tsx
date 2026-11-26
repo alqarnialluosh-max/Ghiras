@@ -63,6 +63,10 @@ export function SessionDetail({ b, viewer, studentNotes, children }: {
             <div className="mt-4"><TeamsButton b={b} size="w-full" /></div>
             <p className="mt-4 break-all text-xs text-muted" dir="ltr">{b.teams_link}</p>
           </>
+        ) : b.status === "requested" || b.status === "proposed" ? (
+          <p className="mt-2 text-[.95rem] text-muted">يظهر رابط Teams هنا فور تأكيد الحصة.</p>
+        ) : b.status === "declined" || b.status === "not_taken" || b.status === "rescheduled" ? (
+          <p className="mt-2 text-[.95rem] text-muted">لا يوجد رابط، فهذه الحصة لم تُعقد في هذا الموعد.</p>
         ) : (
           <p className="mt-2 text-[.95rem] text-muted">انتهى وقت هذه الحصة.</p>
         )}

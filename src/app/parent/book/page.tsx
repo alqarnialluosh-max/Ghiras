@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Empty, PageTitle } from "@/components/DashShell";
 import { needsEmailVerification, requireRole } from "@/lib/auth";
 import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
-import { availableSlots, bookableDays, eligibleTeachers, type Sub } from "@/lib/booking";
+import { availableSlots, bookableDays, dayStates, eligibleTeachers, type Sub } from "@/lib/booking";
 import { GRADES, SUBJECT_KEYS, SUBJECTS, TRACKS, type Subject } from "@/lib/domain";
 import { parentSubscriptions, remainingFor } from "@/lib/subscriptions";
 import { keyLabel, minutesToLabel, riyadhDateKey } from "@/lib/time";
@@ -10,7 +10,7 @@ import { BookConfirm } from "./BookConfirm";
 
 export const metadata = { title: "احجز حصة" };
 
-type SP = { sub?: string; subject?: string; date?: string; minute?: string };
+type SP = { sub?: string; subject?: string; date?: string; minute?: string; pick?: string };
 
 function StepTitle({ n, children }: { n: number; children: React.ReactNode }) {
   return (
@@ -66,7 +66,11 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
   };
 
   const days = sub ? bookableDays(sub as unknown as Sub) : [];
-  const date = sp.date && days.includes(sp.date) ? sp.date : undefined;
+  const noTeachersAtAll = sub && subject ? (await eligibleTeachers(subject, sub.grade)).length === 0 : false;
+  const states = sub && subject && !noTeachersAtAll
+    ? await dayStates({ sub: sub as unknown as Sub, studentId: sub.student_id, grade: sub.grade, subject, days })
+    : new Map();
+  const date = sp.date && states.get(sp.date) === "open" ? sp.date : undefined;
   const slots = sub && subject && date
     ? await availableSlots({ sub: sub as unknown as Sub, studentId: sub.student_id, grade: sub.grade, subject, dateKey: date })
     : new Map<number, string[]>();
@@ -74,11 +78,11 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
   const teachers = sub && subject && minute != null
     ? (await eligibleTeachers(subject, sub.grade)).filter((t) => slots.get(minute)!.includes(t.id))
     : [];
-  const noTeachersAtAll = sub && subject ? (await eligibleTeachers(subject, sub.grade)).length === 0 : false;
 
   return (
     <>
-      <PageTitle title="احجز حصة" sub="اختر الوقت أولاً، ثم المعلمة المتاحة فيه." />
+      <PageTitle title="احجز حصة" sub="اختر الوقت، ثم المعلمة المتاحة فيه، وتؤكد المعلمة طلبك خلال ساعات." />
+      {sp.pick && <p role="status" className="alert alert-info mb-6">اختر اليوم والوقت المناسبين لك. حصتك محفوظة في رصيدك.</p>}
       <div className="space-y-10">
         <section>
           <StepTitle n={1}>الاشتراك</StepTitle>
@@ -120,17 +124,32 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
               {days.map((d) => {
                 const isToday = d === riyadhDateKey(new Date());
                 const [, m, day] = d.split("-");
-                return (
-                  <Link key={d} href={link({ date: d, minute: undefined })} scroll={false} aria-current={date === d ? "true" : undefined}
-                    className={`flex min-w-[78px] flex-col items-center rounded-xl border-[1.5px] px-3 py-2 ${
-                      date === d ? "border-lav-600 bg-lav-700 text-white" : "border-line bg-white hover:border-lav-400"}`}>
+                const state = states.get(d) ?? "full";
+                const face = (
+                  <>
                     <span className="text-xs opacity-80">{isToday ? "اليوم" : keyLabel(d).split("،")[0]}</span>
                     <span className="font-display text-xl">{Number(day)}</span>
-                    <span className="text-xs opacity-80">{Number(m)}/{d.slice(0, 4)}</span>
+                    <span className="text-xs opacity-80">{state === "open" ? `${Number(m)}/${d.slice(0, 4)}` : state === "week_full" ? "اكتمل أسبوعك" : isToday ? "انتهى حجز اليوم" : "محجوز بالكامل"}</span>
+                  </>
+                );
+                // Full days stay visible but can't be picked, so a request only goes to a day with real room.
+                return state === "open" ? (
+                  <Link key={d} href={link({ date: d, minute: undefined })} scroll={false} aria-current={date === d ? "true" : undefined}
+                    className={`flex min-w-[86px] flex-col items-center rounded-xl border-[1.5px] px-3 py-2 ${
+                      date === d ? "border-lav-600 bg-lav-700 text-white" : "border-line bg-white hover:border-lav-400"}`}>
+                    {face}
                   </Link>
+                ) : (
+                  <div key={d} aria-disabled="true" title={state === "full" ? "لا توجد أوقات متاحة في هذا اليوم" : "وصلت للحد الأسبوعي من الحصص"}
+                    className="flex min-w-[86px] cursor-not-allowed flex-col items-center rounded-xl border-[1.5px] border-dashed border-line bg-wash px-3 py-2 text-muted">
+                    {face}
+                  </div>
                 );
               })}
             </div>
+            {[...states.values()].every((s) => s !== "open") && (
+              <p className="alert alert-info mt-3">كل الأيام القريبة محجوزة لهذه المادة. تواصل معنا على واتساب ونرتب لك موعداً.</p>
+            )}
           </section>
         )}
 

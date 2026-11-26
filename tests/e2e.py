@@ -186,17 +186,30 @@ async def main():
         await pg.locator("label", has_text=TNAME).click()
         await pg.fill("#description", "مراجعة الكسور العشرية وحل واجب صفحة 42")
         await pg.screenshot(path="/tmp/s_book.png", full_page=True)
-        await pg.click("button:has-text('أكّد الحجز')")
-        await pg.wait_for_url("**/parent/sessions/*?booked=1")
-        await expect(pg.get_by_text("تم الحجز")).to_be_visible()
+        await pg.click("button:has-text('أرسل طلب الحجز')")
+        await pg.wait_for_url("**/parent/sessions/*?requested=1")
+        await expect(pg.get_by_text("أرسلنا طلبك")).to_be_visible()
+        await expect(pg.get_by_text(f"بانتظار تأكيد {TNAME}")).to_be_visible()
+        assert await pg.locator(f"a[href='{TEAMS}']").count() == 0          # no link before the teacher confirms
+        bid = pg.url.split("/sessions/")[1].split("?")[0]
+        assert sql(f"SELECT status FROM bookings WHERE id='{bid}'").stdout.strip() == "requested"
+        await pg.screenshot(path="/tmp/s_request_parent.png", full_page=True)
+        step("booking is a request: parent sees 'waiting for teacher', no link yet")
+
+        await t.goto(f"{BASE}/teacher")
+        await expect(t.get_by_text("طلبات بانتظار ردكِ (1)")).to_be_visible()
+        await t.goto(f"{BASE}/teacher/sessions/{bid}")
+        await expect(t.get_by_text("طلب حصة بانتظار ردكِ")).to_be_visible()
+        await t.screenshot(path="/tmp/s_request_teacher.png", full_page=True)
+        await t.click("button:has-text('قبول الحصة')")
+        await expect(t.get_by_text("تم قبول الحصة")).to_be_visible()
+        await pg.goto(f"{BASE}/parent/sessions/{bid}")
         href = await pg.locator(f"a[href='{TEAMS}']").first.get_attribute("href")
         assert href == TEAMS
         await pg.screenshot(path="/tmp/s_session_parent.png", full_page=True)
-        step("booking created; session page shows Teams link + description")
+        step("teacher accepts → session confirmed; parent sees Teams link + description")
 
         # ---- Same slot again must fail (student overlap) — try via second booking of same time
-        booked_url = pg.url
-        bid = booked_url.split("/sessions/")[1].split("?")[0]
         r = sql(f"""INSERT INTO bookings (subscription_id,parent_id,student_id,teacher_id,subject,track,starts_at,ends_at,teams_link,created_by)
                     SELECT subscription_id,parent_id,student_id,teacher_id,subject,track,starts_at + interval '30 minutes',ends_at + interval '30 minutes',teams_link,created_by FROM bookings WHERE id='{bid}'""")
         assert "bookings_no_teacher_overlap" in r.stderr or "bookings_no_student_overlap" in r.stderr, r.stderr

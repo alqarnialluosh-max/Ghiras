@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BOOKING_STATUS, GRADES, JOIN_OPENS_MINUTES, SUBJECTS, TRACKS } from "@/lib/domain";
 import type { BookingView } from "@/lib/queries";
-import { dateLabel, timeLabel } from "@/lib/time";
+import { dateLabel, riyadhDateKey, timeLabel } from "@/lib/time";
 
 export function joinState(b: { starts_at: Date; ends_at: Date; status: string }, now = Date.now()) {
   if (b.status !== "scheduled") return "closed" as const;
@@ -12,7 +12,7 @@ export function joinState(b: { starts_at: Date; ends_at: Date; status: string },
 
 export function StatusChip({ status }: { status: string }) {
   const cls = status === "completed" ? "chip-ok" : status === "scheduled" ? "chip-sky"
-    : status === "rescheduled" ? "" : "chip-warn";
+    : ["rescheduled", "declined", "not_taken"].includes(status) ? "" : status === "requested" || status === "proposed" ? "chip-lav" : "chip-warn";
   return <span className={`chip ${cls}`}>{BOOKING_STATUS[status] ?? status}</span>;
 }
 
@@ -42,6 +42,12 @@ export function SessionCard({ b, viewer }: { b: BookingView; viewer: "parent" | 
         </div>
         <p className="mt-2 font-medium">{dateLabel(b.starts_at)} — {timeLabel(b.starts_at)}</p>
         <p className="text-[.95rem] text-muted">{who}</p>
+        {b.respond_by && (b.status === "requested" || b.status === "proposed") && (
+          <p className="mt-1 text-sm text-lav-700">
+            {viewer === "teacher" ? "ردّي قبل " : b.proposal_stage === "parent" ? "أكّد قبل " : "بانتظار الرد حتى "}{timeLabel(b.respond_by)}
+            {riyadhDateKey(b.respond_by) !== riyadhDateKey(new Date()) ? ` (${dateLabel(b.respond_by)})` : ""}
+          </p>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <TeamsButton b={b} size="btn-sm" />

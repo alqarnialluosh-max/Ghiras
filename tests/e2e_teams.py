@@ -13,16 +13,21 @@ def mock(path, data=None):
     req = urllib.request.Request(MOCK + path, data=json.dumps(data).encode() if data is not None else None, method="POST" if data is not None else "GET")
     return json.loads(urllib.request.urlopen(req).read())
 
-async def book(pg, dayIndex, minuteIndex=0):
+async def book(pg, t, dayIndex, minuteIndex=0):
     await pg.goto(f"{BASE}/parent/book")
     await pg.click("a:has-text('الرياضيات')")
     await pg.locator("a[href*='date=']").nth(dayIndex).click(); await pg.wait_for_load_state("networkidle")
     await pg.locator("a[href*='minute=']").nth(minuteIndex).click(); await pg.wait_for_load_state("networkidle")
     await pg.locator("label", has_text=TNAME).click()
     await pg.fill("#description", "حصة اختبار تيمز")
-    await pg.click("button:has-text('أكّد الحجز')")
-    await pg.wait_for_url("**/parent/sessions/*?booked=1")
-    return pg.url.split("/sessions/")[1].split("?")[0]
+    await pg.click("button:has-text('أرسل طلب الحجز')")
+    await pg.wait_for_url("**/parent/sessions/*?requested=1")
+    bid = pg.url.split("/sessions/")[1].split("?")[0]
+    # the teacher accepts → the session is confirmed and gets its Teams meeting
+    await t.goto(f"{BASE}/teacher/sessions/{bid}"); await t.click("button:has-text('قبول الحصة')")
+    await expect(t.get_by_text("تم قبول الحصة")).to_be_visible()
+    await pg.goto(f"{BASE}/parent/sessions/{bid}")
+    return bid
 
 async def main():
     mock("/_test/state", {"fail": False, "events": {}, "cancelled": [], "tokens": 0})
@@ -67,7 +72,7 @@ async def main():
         step("approved teacher is bookable without a permanent link")
 
         # 1) Booking → own Teams meeting immediately
-        bid = await book(pg, 1)
+        bid = await book(pg, t, 1)
         row = sql(f"SELECT teams_source, teams_link, teams_event_id FROM bookings WHERE id='{bid}'").split("|")
         assert row[0] == "auto" and row[1].startswith("https://teams.microsoft.com/l/meetup-join/mock-") and row[2].startswith("AAMk"), row
         assert await pg.locator(f"a[href='{row[1]}']").count() >= 1
@@ -81,7 +86,7 @@ async def main():
 
         # 2) Graph outage → session shows 'preparing', then recovers via retry
         mock("/_test/state", {"fail": True})
-        bid2 = await book(pg, 2)
+        bid2 = await book(pg, t, 2)
         await expect(pg.get_by_text("يجري تجهيز رابط Teams الخاص بهذه الحصة")).to_be_visible()
         assert sql(f"SELECT teams_source FROM bookings WHERE id='{bid2}'") == "pending"
         step("Microsoft outage: booking still succeeds; page says the link is being prepared")

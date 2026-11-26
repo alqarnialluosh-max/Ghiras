@@ -15,6 +15,7 @@ import { storeInfo } from "@/lib/salla-api";
 import { syncRecentOrders } from "@/lib/salla-orders";
 import { cancelMeeting, createMeeting, retryPendingMeetings, teamsAutoConfigured } from "@/lib/teams";
 import { PAYABLE } from "@/lib/teachers";
+import { markDeclineReviewed } from "@/lib/requests";
 import { fail, fieldErrorsOf, keepValues, type ActionState } from "@/lib/validation";
 
 const uuid = z.string().uuid();
@@ -470,4 +471,12 @@ export async function flushEmailsAction() {
   await requireRole("admin");
   await dispatchOutbox(50);
   revalidatePath("/admin/emails");
+}
+
+export async function reviewDeclineAction(fd: FormData) {
+  const admin = await requireRole("admin");
+  const id = uuid.safeParse(fd.get("id"));
+  if (!id.success) return;
+  await markDeclineReviewed(admin.id, id.data);
+  revalidatePath("/admin/requests");
 }

@@ -37,7 +37,7 @@ export default async function AdminBooking({ params, searchParams }: {
       {b.replaced_by && <p className="alert alert-info mb-4">أعيدت جدولة هذه الحصة إلى <Link href={`/admin/bookings/${b.replaced_by}`} className="underline">الموعد الجديد</Link>.</p>}
       <SessionDetail b={b} viewer="admin" studentNotes={decrypt(st?.notes_enc)}>
         <FamilyGoals parentId={b.parent_id} />
-        {b.status !== "rescheduled" && (
+        {["scheduled", "completed", "student_absent", "teacher_absent"].includes(b.status) && (
           <div className="mt-8 grid gap-6 border-t border-line pt-6 md:grid-cols-2">
             <section>
               <h2 className="mb-3 text-lg font-semibold">تعديل الحالة</h2>

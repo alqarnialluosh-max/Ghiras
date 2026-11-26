@@ -51,6 +51,15 @@ export function middleware(req: NextRequest) {
   res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
   if (isProd) res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   if (PROTECTED.some((p) => pathname.startsWith(p))) res.headers.set("Cache-Control", "private, no-store");
+
+  // Keep the session cookie alive while the user keeps coming back (at most once a day).
+  // The real limit is the session's expiry in the database (30 days of inactivity; 3 for the owner).
+  const token = req.cookies.get(cookieName)?.value;
+  if (token && !req.cookies.get("ghiras_seen")) {
+    const base = { httpOnly: true, secure: isProd, sameSite: "lax" as const, path: "/" };
+    res.cookies.set(cookieName, token, { ...base, maxAge: 30 * 86400 });
+    res.cookies.set("ghiras_seen", "1", { ...base, maxAge: 86400 });
+  }
   return res;
 }
 

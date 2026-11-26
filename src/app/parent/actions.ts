@@ -1,4 +1,5 @@
 "use server";
+import { respondByParent } from "@/lib/requests";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -10,7 +11,6 @@ import { one } from "@/lib/db";
 import { getPlans } from "@/lib/plans";
 import { rateLimit } from "@/lib/rate-limit";
 import { createPendingSubscription } from "@/lib/subscriptions";
-import { ensureBookingMeeting } from "@/lib/teams";
 import { fail, fieldErrorsOf, keepValues, studentSchema, type ActionState } from "@/lib/validation";
 
 export async function addStudentAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -111,8 +111,25 @@ export async function bookAction(_: ActionState, fd: FormData): Promise<ActionSt
     if (e instanceof BookingError) return fail(e.userMessage);
     throw e;
   }
-  // Give the session its own Teams meeting now (falls back to the teacher's link; retried in background)
-  await ensureBookingMeeting(id).catch(() => false);
+  // The Teams meeting is created when the teacher accepts.
   revalidatePath("/parent", "layout");
-  redirect(`/parent/sessions/${id}?booked=1`);
+  redirect(`/parent/sessions/${id}?requested=1`);
+}
+
+export async function respondProposalAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireRole("parent");
+  const id = z.string().uuid().safeParse(fd.get("id"));
+  if (!id.success) return fail("طلب غير صالح.");
+  const answer = z.enum(["accept", "decline"]).safeParse(fd.get("answer"));
+  if (!answer.success) return fail("اختر تأكيد الموعد أو اختيار غيره.");
+  const accept = answer.data === "accept";
+  try {
+    await respondByParent(user.id, id.data, accept);
+  } catch (e) {
+    if (e instanceof BookingError) return fail(e.userMessage);
+    throw e;
+  }
+  revalidatePath("/parent", "layout");
+  revalidatePath("/teacher", "layout");
+  redirect(accept ? `/parent/sessions/${id.data}?confirmed=1` : "/parent/book?pick=1");
 }

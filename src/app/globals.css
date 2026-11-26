@@ -85,6 +85,7 @@
     background: var(--color-lav-100); color: var(--color-lav-700);
   }
   .chip-sky { background: var(--color-sky-100); color: var(--color-sky-700); }
+  .chip-lav { background: var(--color-lav-100); color: var(--color-lav-700); }
   .chip-ok { background: #e3f4ec; color: var(--color-ok); }
   .chip-warn { background: #fbf0dc; color: var(--color-warn); }
   .chip-bad { background: #fbe6e8; color: var(--color-bad); }

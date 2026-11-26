@@ -9,8 +9,9 @@ import { env } from "./env";
 import { ipHash, userAgent } from "./request";
 
 export const SESSION_COOKIE = env.isProd ? "__Host-ghiras" : "ghiras";
-const SESSION_DAYS = 30;
-const REFRESH_WHEN_DAYS_LEFT = 15;
+/** Families and teachers stay signed in while they keep using the site; the owner's account is shorter-lived. */
+const SESSION_DAYS: Record<Role, number> = { parent: 30, teacher: 30, admin: 3 };
+export const COOKIE_MAX_DAYS = 30;
 
 export type Role = "parent" | "teacher" | "admin";
 export type SessionUser = {
@@ -40,7 +41,8 @@ export async function burnPasswordTime(pw: string) {
 export async function createSession(userId: string) {
   const token = randomToken(32);
   const id = sha256(token);
-  const expires = new Date(Date.now() + SESSION_DAYS * 86400_000);
+  const role = (await one<{ role: Role }>(`SELECT role FROM users WHERE id = $1`, [userId]))?.role ?? "parent";
+  const expires = new Date(Date.now() + SESSION_DAYS[role] * 86400_000);
   await q(
     `INSERT INTO auth_sessions (id, user_id, expires_at, ip_hash, user_agent) VALUES ($1,$2,$3,$4,$5)`,
     [id, userId, expires, await ipHash(), await userAgent()],
@@ -69,9 +71,10 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     [id],
   );
   if (!row) return null;
-  // Sliding expiry (DB only; cookie is refreshed on next login/mutation)
-  if (row.expires_at.getTime() - Date.now() < REFRESH_WHEN_DAYS_LEFT * 86400_000) {
-    await q(`UPDATE auth_sessions SET expires_at = now() + interval '${SESSION_DAYS} days' WHERE id = $1`, [id]);
+  // Sliding expiry: activity extends the session (the middleware keeps the cookie alive alongside).
+  const days = SESSION_DAYS[row.role];
+  if (row.expires_at.getTime() - Date.now() < (days / 2) * 86400_000) {
+    await q(`UPDATE auth_sessions SET expires_at = now() + make_interval(days => $2) WHERE id = $1`, [id, days]);
   }
   return { id: row.id, role: row.role, status: row.status, full_name: row.full_name, email: row.email,
     email_verified: !!row.email_verified_at, session_id: row.session_id };

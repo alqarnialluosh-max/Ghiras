@@ -1,5 +1,8 @@
 "use server";
+import { acceptByTeacher, declineByTeacher } from "@/lib/requests";
+import { BookingError } from "@/lib/booking";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { cleanReport, reportSchema } from "@/lib/report";
 import { kickOutbox, queueReportEmail } from "@/lib/email";
@@ -149,4 +152,37 @@ export async function replaceCvAction(_: ActionState, fd: FormData): Promise<Act
   });
   revalidatePath("/teacher/profile");
   return { ok: "تم رفع السيرة الذاتية. النسخة القديمة محفوظة في السجل." };
+}
+
+// ------------------------------------------------------------------ booking requests
+
+export async function acceptRequestAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireRole("teacher");
+  const id = z.string().uuid().safeParse(fd.get("id"));
+  if (!id.success) return fail("طلب غير صالح.");
+  let outcome: string;
+  try {
+    outcome = await acceptByTeacher(user.id, id.data);
+  } catch (e) {
+    if (e instanceof BookingError) return fail(e.userMessage);
+    throw e;
+  }
+  revalidatePath("/teacher", "layout");
+  revalidatePath("/parent", "layout");
+  redirect(`/teacher/sessions/${id.data}?done=${outcome === "confirmed" ? "accepted" : "proposed"}`);
+}
+
+export async function declineRequestAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireRole("teacher");
+  const id = z.string().uuid().safeParse(fd.get("id"));
+  if (!id.success) return fail("طلب غير صالح.");
+  try {
+    await declineByTeacher(user.id, id.data, String(fd.get("reason") ?? ""));
+  } catch (e) {
+    if (e instanceof BookingError) return fail(e.userMessage);
+    throw e;
+  }
+  revalidatePath("/teacher", "layout");
+  revalidatePath("/parent", "layout");
+  redirect(`/teacher/sessions/${id.data}?done=declined`);
 }
