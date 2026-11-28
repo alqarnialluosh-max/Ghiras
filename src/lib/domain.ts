@@ -52,8 +52,10 @@ export const SUB_STATUS: Record<string, string> = {
 
 export const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
-/** Session length in minutes (one hour as specified). */
-export const SESSION_MINUTES = 60;
+/** Session length in minutes (one hour and a quarter). */
+export const SESSION_MINUTES = 75;
+/** Human label for the session length. */
+export const SESSION_LABEL = "ساعة وربع";
 /** Slot granularity for start times. */
 export const SLOT_STEP_MINUTES = 30;
 /** Requests must be made at least this many hours ahead (room for the teacher to answer, or an alternative). */

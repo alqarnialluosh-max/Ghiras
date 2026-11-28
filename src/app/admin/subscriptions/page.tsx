@@ -26,11 +26,11 @@ export default async function AdminSubscriptions({ searchParams }: { searchParam
   const subs = await q<{
     id: string; reference: string; status: string; plan_name: string; subject: Subject | null; track: Track; price_sar: string;
     sessions_total: number; used: string; starts_at: Date | null; ends_at: Date | null; created_at: Date; salla_order_id: string | null;
-    parent_name: string; email: string; student_name: string; activation_note: string | null;
+    parent_name: string; email: string; student_name: string; activation_note: string | null; auto_renew: boolean; renewal_of: string | null;
   }>(`
     SELECT s.id, s.reference, s.status, p.name_ar plan_name, s.subject, s.track, s.price_sar, s.sessions_total,
            (SELECT count(*) FROM bookings b WHERE b.subscription_id = s.id AND b.status IN ('scheduled','completed','student_absent')) used,
-           s.starts_at, s.ends_at, s.created_at, s.salla_order_id, s.activation_note,
+           s.starts_at, s.ends_at, s.created_at, s.salla_order_id, s.activation_note, s.auto_renew, s.renewal_of,
            u.full_name parent_name, u.email, st.full_name student_name
       FROM subscriptions s JOIN plans p ON p.code = s.plan_code JOIN users u ON u.id = s.parent_id JOIN students st ON st.id = s.student_id
       ${where.length ? "WHERE " + where.join(" AND ") : ""}
@@ -68,6 +68,7 @@ export default async function AdminSubscriptions({ searchParams }: { searchParam
                   <div><dt className="text-muted">الفترة</dt><dd>{s.starts_at ? `${shortDate(s.starts_at)} – ${shortDate(s.ends_at!)}` : "—"}</dd></div>
                   <div><dt className="text-muted">طلب سلة</dt><dd dir="ltr" className="text-right">{s.salla_order_id ?? "—"}</dd></div>
                   <div><dt className="text-muted">ملاحظة التفعيل</dt><dd>{s.activation_note ?? "—"}</dd></div>
+                  <div><dt className="text-muted">التجديد التلقائي</dt><dd>{s.auto_renew ? "مفعّل" : "موقوف"}{s.renewal_of ? " · هذا تجديد لاشتراك سابق" : ""}</dd></div>
                 </dl>
                 {s.status === "pending_payment" && (
                   <div className="space-y-3">

@@ -173,7 +173,7 @@ export default async function BookPage({ searchParams }: { searchParams: Promise
             <StepTitle n={5}>المعلمة وتفاصيل الحصة</StepTitle>
             <BookConfirm
               subscriptionId={sub.id} studentId={sub.student_id} subject={subject} date={date} minute={minute}
-              summary={`${SUBJECTS[subject]} · ${keyLabel(date)} · ${minutesToLabel(minute)} · ساعة كاملة`}
+              summary={`${SUBJECTS[subject]} · ${keyLabel(date)} · ${minutesToLabel(minute)} · ساعة وربع`}
               teachers={teachers.map((t) => ({ id: t.id, name: t.full_name, bio: t.bio, years: t.years_experience, qualification: t.qualification }))}
             />
           </section>

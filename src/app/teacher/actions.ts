@@ -4,6 +4,7 @@ import { BookingError } from "@/lib/booking";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { SESSION_MINUTES } from "@/lib/domain";
 import { cleanReport, reportSchema } from "@/lib/report";
 import { kickOutbox, queueReportEmail } from "@/lib/email";
 import { audit } from "@/lib/audit";
@@ -49,7 +50,7 @@ const ruleSchema = z.object({
   weekdays: z.array(z.coerce.number().int().min(0).max(6)).min(1, "اختاري يوماً واحداً على الأقل"),
   start: time,
   end: time,
-}).refine((d) => d.end - d.start >= 60, { path: ["end"], message: "الفترة ساعة على الأقل" })
+}).refine((d) => d.end - d.start >= SESSION_MINUTES, { path: ["end"], message: "الفترة ساعة وربع على الأقل (مدة حصة واحدة)" })
   .refine((d) => d.start % 30 === 0 && d.end % 30 === 0, { path: ["start"], message: "استخدمي أوقاتاً على رأس الساعة أو النصف" });
 
 export async function addAvailabilityAction(_: ActionState, fd: FormData): Promise<ActionState> {

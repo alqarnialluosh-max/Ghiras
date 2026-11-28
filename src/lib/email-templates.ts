@@ -174,3 +174,23 @@ Object.assign(TEMPLATES, {
   }),
 });
 Object.assign(TEMPLATE_LABELS, { ticket_notice: "تذكرة دعم (فريق)", approval_notice: "اعتماد (فريق)", staff_welcome: "ترحيب بعضو فريق" });
+
+// ---------- Auto-renewal
+Object.assign(TEMPLATES, {
+  renewal_due: (p: P) => layout({
+    title: `اشتراك ${p.student} يتجدد في ${p.date}`,
+    lines: [
+      `أهلاً ${p.name}، تنتهي ${p.plan} لـ${p.student} يوم ${p.date}، والتجديد التلقائي مفعّل.`,
+      `جهّزنا التجديد بمبلغ ${p.price} ريال (رقم الطلب ${p.reference}). ادفعه من الزر أدناه بالبريد أو الجوال نفسه المسجل في حسابك، ويبدأ الشهر الجديد من يوم انتهاء الحالي فلا يضيع عليك أي يوم.`,
+      "لا تريد التجديد؟ أوقفه من صفحتك الرئيسية في غِراس بضغطة واحدة، ولن يُحتسب عليك شيء.",
+    ],
+    cta: p.link ? { label: "ادفع التجديد", href: p.link } : { label: "صفحتي في غِراس", href: absUrl("/parent") },
+    note: "يمكنك إيقاف التجديد التلقائي أو تشغيله في أي وقت من صفحتك الرئيسية.",
+  }),
+  plan_ending: (p: P) => layout({
+    title: `تنتهي ${p.plan} لـ${p.student} يوم ${p.date}`,
+    lines: [`أهلاً ${p.name}، التجديد التلقائي موقوف لهذا الاشتراك، لذا ينتهي يوم ${p.date}.`, "الحصص غير المحجوزة حتى ذلك اليوم تنتهي معه. احجزها الآن، أو جدّد الاشتراك ليستمر ابنك مع معلمته."],
+    cta: { label: "احجز أو جدّد", href: absUrl("/parent") },
+  }),
+});
+Object.assign(TEMPLATE_LABELS, { renewal_due: "تجديد تلقائي (رابط الدفع)", plan_ending: "انتهاء اشتراك قريب" });

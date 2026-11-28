@@ -11,6 +11,7 @@ import { one } from "@/lib/db";
 import { getPlans } from "@/lib/plans";
 import { rateLimit } from "@/lib/rate-limit";
 import { createPendingSubscription } from "@/lib/subscriptions";
+import { RenewError, setAutoRenew } from "@/lib/renewals";
 import { fail, fieldErrorsOf, keepValues, studentSchema, type ActionState } from "@/lib/validation";
 
 export async function addStudentAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -132,4 +133,20 @@ export async function respondProposalAction(_: ActionState, fd: FormData): Promi
   revalidatePath("/parent", "layout");
   revalidatePath("/teacher", "layout");
   redirect(accept ? `/parent/sessions/${id.data}?confirmed=1` : "/parent/book?pick=1");
+}
+
+export async function autoRenewAction(fd: FormData) {
+  const user = await requireRole("parent");
+  const id = z.string().uuid().safeParse(fd.get("id"));
+  const on = fd.get("on") === "1";
+  if (!id.success) redirect("/parent");
+  let done = on ? "renew_on" : "renew_off";
+  try {
+    await setAutoRenew(user.id, id.data, on);
+  } catch (e) {
+    if (!(e instanceof RenewError)) throw e;
+    done = "renew_error";
+  }
+  revalidatePath("/parent");
+  redirect(`/parent?done=${done}`);
 }

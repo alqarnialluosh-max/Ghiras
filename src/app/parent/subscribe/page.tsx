@@ -42,7 +42,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
         students={students.map(({ id, full_name, grade }) => ({ id, full_name, grade }))}
         plans={plans.map((p) => ({
           code: p.code, name_ar: p.name_ar, price: planPrice(p), all_subjects: p.all_subjects,
-          sessions: p.sessions_count, bonus: p.bonus_sessions, hasLink: !!p.salla_url, line: planSessionsLine(p),
+          sessions: p.sessions_count, bonus: p.bonus_sessions, hasLink: !!p.salla_url, line: planSessionsLine(p), renewable: p.renewable,
         }))}
       />
     </>

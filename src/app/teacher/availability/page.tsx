@@ -21,7 +21,7 @@ export default async function AvailabilityPage() {
 
   return (
     <>
-      <PageTitle title="أوقاتي" sub="هذه الأوقات هي التي تظهر لأولياء الأمور. مدة الحصة ساعة، وتبدأ على رأس الساعة أو نصفها." />
+      <PageTitle title="أوقاتي" sub="هذه الأوقات هي التي تظهر لأولياء الأمور. مدة الحصة ساعة وربع، وتبدأ على رأس الساعة أو نصفها." />
       <div className="grid gap-8 lg:grid-cols-[1.2fr_.8fr]">
         <section className="panel p-6" aria-labelledby="week">
           <h2 id="week" className="mb-4 text-xl">الجدول الأسبوعي</h2>

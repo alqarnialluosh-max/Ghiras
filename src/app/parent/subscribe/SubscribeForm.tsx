@@ -6,7 +6,7 @@ import { subscribeAction } from "../actions";
 import { FieldErrorText, FormMessage, SubmitButton } from "@/components/forms";
 import { GRADES, SUBJECTS, TRACKS } from "@/lib/domain";
 
-type P = { code: string; name_ar: string; price: string; all_subjects: boolean; sessions: number; bonus: number; hasLink: boolean; line: string };
+type P = { code: string; name_ar: string; price: string; all_subjects: boolean; sessions: number; bonus: number; hasLink: boolean; line: string; renewable: boolean };
 
 export function SubscribeForm({ plans, students, initialPlan }: {
   plans: P[]; students: { id: string; full_name: string; grade: number }[]; initialPlan?: string;
@@ -81,6 +81,10 @@ export function SubscribeForm({ plans, students, initialPlan }: {
 
       <div className="rounded-2xl bg-wash p-5 text-[.95rem]">
         بعد الضغط سننقلك إلى متجر غِراس في <strong>سلة</strong> لإتمام الدفع. استخدم <strong>البريد أو رقم الجوال</strong> نفسه المسجل في حسابك، وسيُفعَّل الاشتراك تلقائياً.
+        <p className="mt-2">الباقة للطالب الذي اخترته فقط. لإضافة ابن آخر، اشترك له باقة مستقلة.</p>
+        {current?.renewable !== false && (
+          <p className="mt-2">الاشتراك يتجدد تلقائياً كل شهر، ونرسل لك قبل التجديد بثلاثة أيام موعده ومبلغه. يمكنك إيقاف التجديد في أي وقت من صفحتك الرئيسية.</p>
+        )}
       </div>
       <SubmitButton className="btn btn-primary w-full sm:w-auto" pending="جارٍ التحويل..." disabled={current && !current.hasLink}>
         {current?.hasLink === false ? "رابط الدفع لهذه الباقة غير متاح بعد" : `انتقل للدفع${current ? ` — ${current.price} ريال` : ""}`}

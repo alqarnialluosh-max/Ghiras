@@ -6,6 +6,7 @@ import { retryPendingMeetings } from "@/lib/teams";
 import { dispatchOutbox, emailConfigured, queueReminders } from "@/lib/email";
 import { processOverdueRequests } from "@/lib/requests";
 import { autoEscalateTickets } from "@/lib/tickets";
+import { processRenewals } from "@/lib/renewals";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export async function POST(req: Request) {
   out.meetings = await retryPendingMeetings().catch((e) => ({ error: String(e) }));
   out.requests = await processOverdueRequests().catch((e) => ({ error: String(e) }));
   out.tickets = await autoEscalateTickets().catch((e) => ({ error: String(e) }));
+  out.renewals = await processRenewals().catch((e) => ({ error: String(e) }));
   if (emailConfigured()) out.reminders = await queueReminders().catch((e) => ({ error: String(e) }));
   out.email = await dispatchOutbox(50).catch((e) => ({ error: String(e) }));
   return NextResponse.json(out);

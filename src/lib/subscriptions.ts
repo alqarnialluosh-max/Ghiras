@@ -15,6 +15,7 @@ export type SubscriptionRow = {
   price_sar: string; sessions_total: number; weekly_limit: number | null; bonus_sessions: number;
   duration_days: number; starts_at: Date | null; ends_at: Date | null; salla_order_id: string | null;
   created_at: Date; plan_name: string; student_name: string; grade: number;
+  auto_renew: boolean; renewal_of: string | null; renewable: boolean;
 };
 
 /** Marks subscriptions whose window ended as expired (idempotent, cheap). */
@@ -28,7 +29,7 @@ export async function createPendingSubscription(input: {
   return tx(async (c) => {
     const { rows: plans } = await c.query<{
       code: string; price_sar: string; sessions_count: number; bonus_sessions: number;
-      weekly_limit: number | null; duration_days: number; all_subjects: boolean;
+      weekly_limit: number | null; duration_days: number; all_subjects: boolean; renewable: boolean;
     }>(`SELECT * FROM plans WHERE code = $1 AND active`, [input.planCode]);
     const plan = plans[0];
     if (!plan) throw new Error("PLAN_NOT_FOUND");
@@ -53,10 +54,10 @@ export async function createPendingSubscription(input: {
       try {
         const { rows } = await c.query<{ id: string; reference: string }>(
           `INSERT INTO subscriptions (reference, parent_id, student_id, plan_code, subject, track, price_sar,
-                                      sessions_total, weekly_limit, bonus_sessions, duration_days)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, reference`,
+                                      sessions_total, weekly_limit, bonus_sessions, duration_days, auto_renew)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id, reference`,
           [makeReference(), input.parentId, input.studentId, plan.code, subject, input.track, plan.price_sar,
-           plan.sessions_count + plan.bonus_sessions, plan.weekly_limit, plan.bonus_sessions, plan.duration_days],
+           plan.sessions_count + plan.bonus_sessions, plan.weekly_limit, plan.bonus_sessions, plan.duration_days, plan.renewable],
         );
         await audit("subscription.create", "subscription", rows[0].id, input.parentId, { plan: plan.code }, c);
         return rows[0];
@@ -69,13 +70,20 @@ export async function createPendingSubscription(input: {
   });
 }
 
-/** Activates a pending subscription. Window starts now. */
+/**
+ * Activates a pending subscription. The window starts now — or, for a renewal paid while the
+ * previous subscription is still running, right when the previous one ends (no lost days).
+ */
 export async function activateSubscription(
   c: PoolClient, subId: string, opts: { orderId?: string | null; actorId?: string | null; note?: string },
 ) {
   const { rows } = await c.query<{ id: string }>(
-    `UPDATE subscriptions
-        SET status = 'active', starts_at = now(), ends_at = now() + make_interval(days => duration_days),
+    `WITH st AS (
+       SELECT GREATEST(now(), COALESCE((SELECT prev.ends_at FROM subscriptions prev
+                                         WHERE prev.id = s.renewal_of AND prev.status = 'active'), now())) AS t
+         FROM subscriptions s WHERE s.id = $1)
+     UPDATE subscriptions
+        SET status = 'active', starts_at = (SELECT t FROM st), ends_at = (SELECT t FROM st) + make_interval(days => duration_days),
             salla_order_id = COALESCE($2, salla_order_id), activated_by = $3, activation_note = $4
       WHERE id = $1 AND status = 'pending_payment'
       RETURNING id`,
@@ -101,7 +109,7 @@ export async function activateSubscription(
 export async function parentSubscriptions(parentId: string) {
   await expireOverdue();
   return q<SubscriptionRow>(
-    `SELECT s.*, p.name_ar AS plan_name, st.full_name AS student_name, st.grade
+    `SELECT s.*, p.name_ar AS plan_name, p.renewable, st.full_name AS student_name, st.grade
        FROM subscriptions s JOIN plans p ON p.code = s.plan_code JOIN students st ON st.id = s.student_id
       WHERE s.parent_id = $1 AND s.status <> 'void'
       ORDER BY (s.status = 'active') DESC, s.created_at DESC`,
@@ -115,7 +123,7 @@ export async function remainingFor(subId: string, total: number) {
 
 export async function getSubscriptionForParent(subId: string, parentId: string) {
   return one<SubscriptionRow>(
-    `SELECT s.*, p.name_ar AS plan_name, st.full_name AS student_name, st.grade
+    `SELECT s.*, p.name_ar AS plan_name, p.renewable, st.full_name AS student_name, st.grade
        FROM subscriptions s JOIN plans p ON p.code = s.plan_code JOIN students st ON st.id = s.student_id
       WHERE s.id = $1 AND s.parent_id = $2`,
     [subId, parentId],

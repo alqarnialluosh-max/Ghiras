@@ -27,7 +27,7 @@ const PLAN_POINTS: Record<string, string[]> = {
     "تقرير بعد الحصة: ما شُرح، ونقاط القوة، والواجب",
   ],
   SINGLE_SESSION: [
-    "حصة فردية لابنك، ساعة كاملة في أي مادة",
+    "حصة فردية لابنك، ساعة وربع في أي مادة",
     "استعداد لاختبار، أو حل واجبات، أو شرح درس كامل",
     "تختارون المعلمة والوقت بأنفسكم",
   ],
@@ -72,7 +72,7 @@ function SessionCardMock() {
         <span className="text-sm text-muted">الثلاثاء 5:00 م</span>
       </div>
       <p className="mt-4 font-display text-xl">الكسور العشرية — الدرس الثالث</p>
-      <p className="mt-1 text-[.95rem] text-muted">مع أ. نورة · حصة فردية · الخامس الابتدائي · ساعة كاملة</p>
+      <p className="mt-1 text-[.95rem] text-muted">مع أ. نورة · حصة فردية · الخامس الابتدائي · ساعة وربع</p>
       <p className="mt-3 rounded-xl bg-wash p-3 text-[.92rem]">
         نرغب في مراجعة واجب صفحة 42 والتدرب على المسائل اللفظية قبل اختبار الأسبوع القادم.
       </p>
@@ -181,7 +181,7 @@ export default async function Home() {
               <a href="#how" className="btn btn-ghost">كيف نعمل</a>
             </div>
             <dl className="mt-10 grid max-w-md grid-cols-3 gap-4 border-t border-line pt-6 text-center md:text-start">
-              <div><dt className="text-sm text-muted">مدة الحصة</dt><dd className="font-display text-xl">ساعة كاملة</dd></div>
+              <div><dt className="text-sm text-muted">مدة الحصة</dt><dd className="font-display text-xl">ساعة وربع</dd></div>
               <div><dt className="text-sm text-muted">نوع الحصة</dt><dd className="font-display text-xl">فردية لابنك</dd></div>
               <div><dt className="text-sm text-muted">الحصة الأولى</dt><dd className="font-display text-xl">مجاناً</dd></div>
             </dl>
@@ -309,7 +309,7 @@ export default async function Home() {
       {/* ---------- Pricing ---------- */}
       <section id="pricing" aria-labelledby="pricing-h" className="wrap scroll-mt-24 py-20">
         <h2 id="pricing-h" className="text-3xl md:text-4xl">الباقات</h2>
-        <p className="mt-3 max-w-xl text-muted">الأسعار بالريال السعودي، والدفع عبر متجرنا في سلة.</p>
+        <p className="mt-3 max-w-xl text-muted">الأسعار بالريال السعودي، والدفع عبر متجرنا في سلة. كل باقة لطالب واحد، ولكل ابن أو ابنة اشتراك مستقل.</p>
 
         <div className="mt-10 rounded-2xl border border-line p-6">
           <h3 className="text-xl">أي باقة تناسب ابنك؟</h3>
@@ -317,7 +317,7 @@ export default async function Home() {
             {[
               ["يحتاج دعماً في أكثر من مادة", "باقة كل المواد", "توزعون الحصص على المواد الثلاث حسب الحاجة، ومعها الحصة الأولى مجاناً."],
               ["مادة واحدة هي التحدي", "باقة مادة واحدة", "تركيز كامل على مادة واحدة طوال الشهر مع معلمتها المختصة."],
-              ["اختبار قريب أو درس صعب", "حصة واحدة", "ساعة واحدة دون اشتراك، تحجزونها متى احتجتم."],
+              ["اختبار قريب أو درس صعب", "حصة واحدة", "حصة واحدة (ساعة وربع) دون اشتراك، تحجزونها متى احتجتم."],
             ].map(([when, plan, why]) => (
               <div key={when}>
                 <dt className="text-muted">{when}</dt>
