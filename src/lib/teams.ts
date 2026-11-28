@@ -1,5 +1,6 @@
 import "server-only";
 import { one, q } from "./db";
+import { createSpace, googleReady } from "./google-meet";
 
 /**
  * Automatic Teams meetings through Microsoft Graph (app-only, client credentials).
@@ -11,8 +12,19 @@ const LOGIN = () => (process.env.MS_LOGIN_BASE ?? "https://login.microsoftonline
 const GRAPH = () => (process.env.MS_GRAPH_BASE ?? "https://graph.microsoft.com/v1.0").replace(/\/$/, "");
 const TIMEOUT_MS = 15_000;
 
+/** Microsoft keys present (Teams app-only). */
 export function teamsAutoConfigured() {
   return !!(process.env.MS_TENANT_ID && process.env.MS_CLIENT_ID && process.env.MS_CLIENT_SECRET && process.env.MS_ORGANIZER);
+}
+
+/** Which service gives each session its own link: Google Meet when linked, else Teams when configured, else none. */
+export async function autoMeetingsProvider(): Promise<"google" | "teams" | null> {
+  if (await googleReady()) return "google";
+  return teamsAutoConfigured() ? "teams" : null;
+}
+/** Sessions get their own link automatically (so a teacher's permanent link is optional). */
+export async function autoMeetingsReady() {
+  return (await autoMeetingsProvider()) !== null;
 }
 
 export class TeamsError extends Error {
@@ -125,7 +137,8 @@ const MAX_ATTEMPTS = 6;
  * On failure the booking keeps its fallback link (teacher's permanent link) if any.
  */
 export async function ensureBookingMeeting(bookingId: string): Promise<boolean> {
-  if (!teamsAutoConfigured()) return false;
+  const provider = await autoMeetingsProvider();
+  if (!provider) return false;
   const b = await one<{ id: string; starts_at: Date; ends_at: Date; subject: string; status: string; teams_source: string;
     teams_attempts: number; student: string; teacher: string; description: string }>(
     `SELECT b.id, b.starts_at, b.ends_at, b.subject, b.status, b.teams_source, b.teams_attempts, b.description,
@@ -134,14 +147,16 @@ export async function ensureBookingMeeting(bookingId: string): Promise<boolean> 
       WHERE b.id = $1`, [bookingId]);
   if (!b || b.teams_source === "auto" || b.status !== "scheduled" || b.ends_at.getTime() < Date.now()) return false;
   try {
-    const m = await createMeeting({
-      bookingId: b.id,
-      subject: `غِراس · ${SUBJECTS[b.subject] ?? b.subject} · ${b.student} مع ${b.teacher}`,
-      start: b.starts_at, end: b.ends_at,
-      description: `حصة فردية من منصة غِراس.\n${b.description || ""}`.trim(),
-    });
-    await q(`UPDATE bookings SET teams_link = $2, teams_event_id = $3, teams_source = 'auto', teams_error = NULL,
-                                 teams_attempts = teams_attempts + 1 WHERE id = $1`, [b.id, m.joinUrl, m.eventId]);
+    const m = provider === "google"
+      ? await createSpace(b.id).then((s) => ({ joinUrl: s.uri, eventId: s.name }))
+      : await createMeeting({
+          bookingId: b.id,
+          subject: `غِراس · ${SUBJECTS[b.subject] ?? b.subject} · ${b.student} مع ${b.teacher}`,
+          start: b.starts_at, end: b.ends_at,
+          description: `حصة فردية من منصة غِراس.\n${b.description || ""}`.trim(),
+        });
+    await q(`UPDATE bookings SET teams_link = $2, teams_event_id = $3, teams_source = 'auto', teams_error = NULL, meeting_provider = $4,
+                                 teams_attempts = teams_attempts + 1 WHERE id = $1`, [b.id, m.joinUrl, m.eventId, provider]);
     return true;
   } catch (e) {
     await q(`UPDATE bookings SET teams_attempts = teams_attempts + 1, teams_error = $2 WHERE id = $1`,
@@ -152,7 +167,7 @@ export async function ensureBookingMeeting(bookingId: string): Promise<boolean> 
 
 /** Retries bookings still waiting for their own meeting (background job). */
 export async function retryPendingMeetings(limit = 25) {
-  if (!teamsAutoConfigured()) return { tried: 0, created: 0 };
+  if (!(await autoMeetingsReady())) return { tried: 0, created: 0 };
   const rows = await q<{ id: string }>(
     `SELECT id FROM bookings WHERE status = 'scheduled' AND teams_source <> 'auto' AND teams_event_id IS NULL
         AND ends_at > now() AND teams_attempts < $1 ORDER BY starts_at LIMIT $2`, [MAX_ATTEMPTS, limit]);

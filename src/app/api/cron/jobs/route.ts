@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { safeEqual } from "@/lib/crypto";
 import { sallaAppConfigured } from "@/lib/salla-api";
 import { syncRecentOrders } from "@/lib/salla-orders";
-import { retryPendingMeetings, teamsAutoConfigured } from "@/lib/teams";
+import { retryPendingMeetings } from "@/lib/teams";
 import { dispatchOutbox, emailConfigured, queueReminders } from "@/lib/email";
 import { processOverdueRequests } from "@/lib/requests";
 import { autoEscalateTickets } from "@/lib/tickets";
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   if (!key || !expected || !safeEqual(key, expected)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const out: Record<string, unknown> = {};
   if (sallaAppConfigured() && process.env.SALLA_SYNC_DISABLED !== "true") out.salla = await syncRecentOrders().catch((e) => ({ error: String(e) }));
-  if (teamsAutoConfigured()) out.teams = await retryPendingMeetings().catch((e) => ({ error: String(e) }));
+  out.meetings = await retryPendingMeetings().catch((e) => ({ error: String(e) }));
   out.requests = await processOverdueRequests().catch((e) => ({ error: String(e) }));
   out.tickets = await autoEscalateTickets().catch((e) => ({ error: String(e) }));
   if (emailConfigured()) out.reminders = await queueReminders().catch((e) => ({ error: String(e) }));

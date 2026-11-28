@@ -10,7 +10,7 @@ export function NewTicketForm({ requester }: { requester?: string }) {
   return (
     <form action={action} className="space-y-5" noValidate>
       <FormMessage state={state} />
-      <Field name="subject" label="عنوان المشكلة" required state={state} placeholder="مثال: الطالب لا يستطيع دخول اجتماع Teams" />
+      <Field name="subject" label="عنوان المشكلة" required state={state} placeholder="مثال: الطالب لا يستطيع دخول اجتماع الحصة" />
       <div className="field">
         <label htmlFor="description">التفاصيل</label>
         <textarea id="description" name="description" className="input" rows={4} maxLength={4000} defaultValue={state.values?.description}

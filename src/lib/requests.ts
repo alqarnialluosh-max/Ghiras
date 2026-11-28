@@ -5,7 +5,7 @@ import { isExclusionViolation, q, tx } from "./db";
 import { MIN_LEAD_HOURS, PARENT_RESPONSE_HOURS, SESSION_MINUTES, TEACHER_RESPONSE_HOURS, type Subject } from "./domain";
 import { BookingError, slotsForRange, subscriptionHeadroom, type Sub } from "./booking";
 import { enqueueAdmin, kickOutbox, queueForBooking } from "./email";
-import { ensureBookingMeeting, teamsAutoConfigured } from "./teams";
+import { autoMeetingsReady, ensureBookingMeeting } from "./teams";
 import { dateLabel, riyadhDateKey, riyadhParts, riyadhToUtc, timeLabel } from "./time";
 
 /*
@@ -200,7 +200,7 @@ async function handOff(c: PoolClient, r: Row, kind: "teacher" | "timeout", reaso
 
 /** Next row of the chain. Returns null if the slot was taken in the meantime (the caller tries the next one). */
 async function insertNext(c: PoolClient, r: Row, n: { teacherId: string; startsAt: Date; status: "requested" | "proposed" }) {
-  const auto = teamsAutoConfigured();
+  const auto = await autoMeetingsReady();
   const { rows: t } = await c.query<{ teams_link: string | null }>(`SELECT teams_link FROM teacher_profiles WHERE user_id = $1`, [n.teacherId]);
   const endsAt = new Date(n.startsAt.getTime() + SESSION_MINUTES * 60_000);
   await c.query("SAVEPOINT next_row");

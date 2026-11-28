@@ -28,7 +28,7 @@ export const STAFF_ROLES = {
   },
   tech_lead: {
     label: "مسؤول/ة التقنية",
-    hint: "تصل إليه مشكلات Teams والحسابات والأعطال التقنية",
+    hint: "تصل إليه مشكلات الاجتماعات والحسابات والأعطال التقنية",
     perms: ["tickets.handle", "sessions.view", "parents.view", "teachers.view", "settings.manage", "audit.view"],
   },
   support: {

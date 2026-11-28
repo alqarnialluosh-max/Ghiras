@@ -41,9 +41,9 @@ async def main():
         await t.fill("#f-qualification", "بكالوريوس رياضيات"); await t.fill("#bio", "معلمة رياضيات لاختبار روابط تيمز التلقائية في المنصة.")
         await t.set_input_files("#cv", "tests/cv.pdf"); await t.check("input[name=consent]")
         await t.click("button[type=submit]"); await t.wait_for_url(f"{BASE}/teacher")
-        await expect(t.get_by_text("أضيفي رابط اجتماع Teams")).to_have_count(0)
+        await expect(t.get_by_text("أضيفي رابط اجتماعك الدائم")).to_have_count(0)
         await t.goto(f"{BASE}/teacher/profile")
-        await expect(t.get_by_text("تُنشأ روابط Teams تلقائياً لكل حصة")).to_be_visible()
+        await expect(t.get_by_text("يُنشأ رابط اجتماع خاص لكل حصة تلقائياً")).to_be_visible()
         await t.goto(f"{BASE}/teacher/availability")
         for d in ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]:
             await t.locator("label", has_text=d).first.click()
@@ -87,12 +87,12 @@ async def main():
         # 2) Graph outage → session shows 'preparing', then recovers via retry
         mock("/_test/state", {"fail": True})
         bid2 = await book(pg, t, 2)
-        await expect(pg.get_by_text("يجري تجهيز رابط Teams الخاص بهذه الحصة")).to_be_visible()
+        await expect(pg.get_by_text("يجري تجهيز رابط الاجتماع الخاص بهذه الحصة")).to_be_visible()
         assert sql(f"SELECT teams_source FROM bookings WHERE id='{bid2}'") == "pending"
         step("Microsoft outage: booking still succeeds; page says the link is being prepared")
         mock("/_test/state", {"fail": False})
         await a.goto(f"{BASE}/admin/teams")
-        await expect(a.get_by_text("تلقائي", exact=True)).to_be_visible()
+        await expect(a.get_by_text("Teams", exact=True).first).to_be_visible()
         await a.click("button:has-text('أنشئ الروابط الناقصة الآن')")
         await expect(a.get_by_role("status")).to_contain_text("أُنشئ رابط مستقل لـ")
         # other suites may leave upcoming sessions too; what matters is that every attempt succeeded
@@ -101,7 +101,7 @@ async def main():
         assert tried == made >= 1, (tried, made)
         assert sql(f"SELECT teams_source FROM bookings WHERE id='{bid2}'") == "auto"
         await pg.goto(f"{BASE}/parent/sessions/{bid2}")
-        await expect(pg.get_by_text("يجري تجهيز رابط Teams الخاص بهذه الحصة")).to_have_count(0)
+        await expect(pg.get_by_text("يجري تجهيز رابط الاجتماع الخاص بهذه الحصة")).to_have_count(0)
         step("retry created the missing link once Microsoft was back")
 
         # 3) Idempotency: re-running the job does not create duplicates
@@ -127,7 +127,7 @@ async def main():
 
         # 5) Owner test button
         await a.goto(f"{BASE}/admin/teams")
-        await a.click("button:has-text('اختبار الربط')")
+        await a.click("button:has-text('اختبار Teams')")
         await expect(a.get_by_role("status")).to_contain_text("الربط يعمل")
         await a.screenshot(path="/tmp/s_teams.png", full_page=True)
         step("owner 'test connection' creates + cancels a test meeting")

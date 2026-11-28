@@ -52,9 +52,9 @@ export function SessionDetail({ b, viewer, studentNotes, children }: {
       </article>
 
       <aside className="panel h-fit p-6">
-        <h2 className="text-lg font-semibold">رابط الحصة على Teams</h2>
+        <h2 className="text-lg font-semibold">رابط الحصة</h2>
         {b.status === "scheduled" && js !== "closed" && !b.teams_link ? (
-          <p className="mt-2 text-[.95rem] text-muted">يجري تجهيز رابط Teams الخاص بهذه الحصة، وسيظهر هنا خلال دقائق.</p>
+          <p className="mt-2 text-[.95rem] text-muted">يجري تجهيز رابط الاجتماع الخاص بهذه الحصة، وسيظهر هنا خلال دقائق.</p>
         ) : b.status === "scheduled" && js !== "closed" ? (
           <>
             <p className="mt-2 text-[.95rem] text-muted">
@@ -64,7 +64,7 @@ export function SessionDetail({ b, viewer, studentNotes, children }: {
             <p className="mt-4 break-all text-xs text-muted" dir="ltr">{b.teams_link}</p>
           </>
         ) : b.status === "requested" || b.status === "proposed" ? (
-          <p className="mt-2 text-[.95rem] text-muted">يظهر رابط Teams هنا فور تأكيد الحصة.</p>
+          <p className="mt-2 text-[.95rem] text-muted">يظهر رابط الحصة هنا فور تأكيدها.</p>
         ) : b.status === "declined" || b.status === "not_taken" || b.status === "rescheduled" ? (
           <p className="mt-2 text-[.95rem] text-muted">لا يوجد رابط، فهذه الحصة لم تُعقد في هذا الموعد.</p>
         ) : (

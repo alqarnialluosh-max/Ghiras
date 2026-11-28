@@ -5,17 +5,25 @@ import { PageTitle } from "@/components/DashShell";
 import { SubmitButton } from "@/components/forms";
 import { q } from "@/lib/db";
 import { SUBJECTS, type Subject } from "@/lib/domain";
-import { teamsAutoConfigured } from "@/lib/teams";
+import { autoMeetingsProvider, teamsAutoConfigured } from "@/lib/teams";
+import { activeGoogleConnection, googleAppConfigured } from "@/lib/google-meet";
+import { site } from "@/config/site";
 import { dateTimeLabel } from "@/lib/time";
-import { teamsRetryAction, teamsTestAction } from "../actions";
+import { googleDisconnectAction, googleTestAction, teamsRetryAction, teamsTestAction } from "../actions";
 
-export const metadata = { title: "ربط تيمز" };
+export const metadata = { title: "الاجتماعات" };
 
-const ACTION: Record<string, string> = { token: "تسجيل الدخول", create: "إنشاء اجتماع", cancel: "إلغاء اجتماع", test: "اختبار" };
+const ACTION: Record<string, string> = { token: "تسجيل الدخول", create: "إنشاء اجتماع", cancel: "إلغاء اجتماع", test: "اختبار",
+  "meet.create": "إنشاء اجتماع Meet", "meet.token": "دخول Google", "meet.authorize": "ربط Google" };
 
-export default async function TeamsPage() {
+export default async function TeamsPage({ searchParams }: { searchParams: Promise<{ google_connected?: string; google_error?: string }> }) {
   await requirePerm("settings.manage");
-  const auto = teamsAutoConfigured();
+  const sp = await searchParams;
+  const provider = await autoMeetingsProvider();
+  const auto = provider !== null;
+  const msKeys = teamsAutoConfigured();
+  const gKeys = googleAppConfigured();
+  const gConn = await activeGoogleConnection();
   const [counts, pending, logs] = await Promise.all([
     q<{ src: string; n: string }>(
       `SELECT teams_source src, count(*) n FROM bookings WHERE status = 'scheduled' AND ends_at > now() GROUP BY 1`),
@@ -31,12 +39,47 @@ export default async function TeamsPage() {
 
   return (
     <>
-      <PageTitle title="ربط تيمز" sub="رابط Teams مستقل لكل حصة، يُنشأ تلقائياً لحظة الحجز ويظهر للعميل والمعلمة." />
+      <PageTitle title="الاجتماعات" sub="رابط مستقل لكل حصة يُنشأ تلقائياً عند تأكيدها، ويظهر للعميل والمعلمة. Google Meet أولاً، وTeams بديلاً." />
+      {sp.google_connected && <p role="status" className="alert alert-ok mb-6">رُبط حساب Google ✓ ستُنشأ روابط Google Meet تلقائياً للحصص من الآن.</p>}
+      {sp.google_error && <p role="alert" className="alert alert-error mb-6">{sp.google_error}</p>}
+
+      <section className="panel mb-8 p-6" aria-labelledby="gmeet">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="gmeet" className="text-xl">Google Meet</h2>
+          <span className={`chip ${gConn && gKeys ? "chip-ok" : ""}`}>{gConn && gKeys ? "مربوط ويعمل" : gKeys ? "جاهز للربط" : "غير مفعّل"}</span>
+        </div>
+        {gConn && gKeys ? (
+          <div className="mt-3 space-y-4">
+            <p className="text-[.97rem]">الحساب المربوط: <span dir="ltr" className="font-medium">{gConn.email}</span> · منذ {dateTimeLabel(gConn.connected_at)}</p>
+            <p className="text-sm text-muted">كل حصة تُؤكد تحصل على اجتماع Meet خاص يدخله الطالب والمعلمة مباشرة من الرابط، دون انتظار مضيف.</p>
+            <div className="flex flex-wrap gap-3">
+              <ActionForm action={googleTestAction}><SubmitButton className="btn btn-primary btn-sm" pending="جارٍ الاختبار...">اختبار الربط</SubmitButton></ActionForm>
+              <a href="/api/google/connect" className="btn btn-ghost btn-sm">إعادة الربط بحساب آخر</a>
+              <form action={googleDisconnectAction}><button className="btn btn-ghost btn-sm">فصل الحساب</button></form>
+            </div>
+          </div>
+        ) : gKeys ? (
+          <div className="mt-3 space-y-3">
+            <p className="text-[.97rem]">اضغط الزر، وسجّل الدخول بحساب Google Workspace الخاص بالمنصة، ووافق على الصلاحية.</p>
+            <a href="/api/google/connect" className="btn btn-primary w-fit">ربط Google Meet</a>
+          </div>
+        ) : (
+          <ol className="mt-4 list-decimal space-y-3 pr-6 text-[.97rem]">
+            <li>اشترك في <strong>Google Workspace Business Starter</strong> لمستخدم واحد بالدومين <span dir="ltr">ghirasedu.site</span> (مثل <span dir="ltr">meet@ghirasedu.site</span>).</li>
+            <li>ادخل <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="text-lav-700 underline" dir="ltr">console.cloud.google.com</a> بنفس الحساب، وأنشئ مشروعاً باسم <span dir="ltr">Ghiras</span>.</li>
+            <li>APIs &amp; Services ← Library ← فعّل <strong dir="ltr">Google Meet REST API</strong>.</li>
+            <li>OAuth consent screen ← نوع المستخدم <strong dir="ltr">Internal</strong> ← اسم التطبيق <span dir="ltr">Ghiras</span>.</li>
+            <li>Credentials ← Create credentials ← <span dir="ltr">OAuth client ID</span> ← <span dir="ltr">Web application</span>، وفي <span dir="ltr">Authorized redirect URIs</span> أضف:
+              <code dir="ltr" className="mt-1 block rounded-lg bg-wash p-2 text-sm">{site.url.replace(/\/$/, "")}/api/google/callback</code></li>
+            <li>انسخ <span dir="ltr">Client ID</span> و<span dir="ltr">Client secret</span> إلى Railway باسم <code dir="ltr">GOOGLE_CLIENT_ID</code> و<code dir="ltr">GOOGLE_CLIENT_SECRET</code>، ثم ارجع هنا واضغط «ربط Google Meet».</li>
+          </ol>
+        )}
+      </section>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="panel p-5"><p className="text-sm text-muted">وضع الروابط</p>
-          <p className={`mt-1 font-display text-2xl ${auto ? "text-ok" : "text-warn"}`}>{auto ? "تلقائي" : "رابط المعلمة الثابت"}</p>
-          {auto && <p className="mt-1 text-sm text-muted" dir="ltr">{process.env.MS_ORGANIZER}</p>}</div>
+          <p className={`mt-1 font-display text-2xl ${auto ? "text-ok" : "text-warn"}`}>{provider === "google" ? "Google Meet" : provider === "teams" ? "Teams" : "رابط المعلمة الثابت"}</p>
+          {provider === "teams" && <p className="mt-1 text-sm text-muted" dir="ltr">{process.env.MS_ORGANIZER}</p>}</div>
         <div className="panel p-5"><p className="text-sm text-muted">حصص قادمة برابط مستقل</p><p className="mt-1 font-display text-2xl text-ok">{n("auto")}</p></div>
         <div className="panel p-5"><p className="text-sm text-muted">برابط المعلمة الثابت</p><p className="mt-1 font-display text-2xl">{n("teacher_link")}</p></div>
         <div className="panel p-5"><p className="text-sm text-muted">بانتظار إنشاء الرابط</p><p className={`mt-1 font-display text-2xl ${n("pending") ? "text-warn" : ""}`}>{n("pending")}</p></div>
@@ -44,9 +87,9 @@ export default async function TeamsPage() {
 
       <div className="grid gap-8 lg:grid-cols-[1.15fr_.85fr]">
         <div className="space-y-8">
-          {!auto && (
+          {!msKeys && provider !== "google" && (
             <section className="panel p-6" aria-labelledby="setup">
-              <h2 id="setup" className="mb-3 text-xl">خطوات التفعيل (مرة واحدة، نحو 15 دقيقة)</h2>
+              <h2 id="setup" className="mb-3 text-xl">بديل: Microsoft Teams</h2>
               <ol className="list-decimal space-y-4 pr-6 text-[.97rem]">
                 <li><strong>اشترك في Microsoft 365 Business Basic</strong> لمستخدم واحد من
                   {" "}<a href="https://www.microsoft.com/microsoft-365/business/microsoft-365-business-basic" target="_blank" rel="noopener noreferrer" className="text-lav-700 underline">موقع مايكروسوفت</a>.
@@ -63,7 +106,7 @@ export default async function TeamsPage() {
                   <code dir="ltr" className="mt-1 block rounded-lg bg-wash p-2 text-sm leading-7">MS_TENANT_ID<br />MS_CLIENT_ID<br />MS_CLIENT_SECRET<br />MS_ORGANIZER  (بريد حساب المنظِّم)</code></li>
                 <li>ارجع لهذه الصفحة واضغط <strong>اختبار الربط</strong>.</li>
               </ol>
-              <p className="alert alert-info mt-4">حتى التفعيل، تعمل الحصص برابط Teams الثابت لكل معلمة كما هو الآن.</p>
+              <p className="alert alert-info mt-4">حتى التفعيل، تعمل الحصص بالرابط الثابت لكل معلمة كما هو الآن.</p>
             </section>
           )}
 
@@ -72,7 +115,7 @@ export default async function TeamsPage() {
               <h2 id="ops" className="mb-1 text-xl">التحكم</h2>
               <p className="mb-4 text-sm text-muted">يُعاد المحاولة تلقائياً كل 15 دقيقة لأي حصة لم يُنشأ رابطها. وعند إعادة الجدولة يُلغى الاجتماع القديم ويُنشأ جديد.</p>
               <div className="flex flex-wrap gap-3">
-                <ActionForm action={teamsTestAction}><SubmitButton className="btn btn-primary btn-sm" pending="جارٍ الاختبار...">اختبار الربط</SubmitButton></ActionForm>
+                {msKeys && <ActionForm action={teamsTestAction}><SubmitButton className="btn btn-ghost btn-sm" pending="جارٍ الاختبار...">اختبار Teams</SubmitButton></ActionForm>}
                 <ActionForm action={teamsRetryAction}><SubmitButton className="btn btn-ghost btn-sm" pending="جارٍ الإنشاء...">أنشئ الروابط الناقصة الآن</SubmitButton></ActionForm>
               </div>
             </section>

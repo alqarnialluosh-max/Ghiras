@@ -12,7 +12,8 @@ import { adminRecipient, canSendTo, dispatchOutbox, emailMode, enqueue, enqueueF
 import { postPayoutExpense } from "@/lib/accounting";
 import { storeInfo } from "@/lib/salla-api";
 import { syncRecentOrders } from "@/lib/salla-orders";
-import { cancelMeeting, createMeeting, retryPendingMeetings, teamsAutoConfigured } from "@/lib/teams";
+import { autoMeetingsReady, cancelMeeting, createMeeting, retryPendingMeetings, teamsAutoConfigured } from "@/lib/teams";
+import { createSpace, disconnectGoogle } from "@/lib/google-meet";
 import { PAYABLE } from "@/lib/teachers";
 import { can } from "@/lib/permissions";
 import { markDeclineReviewed } from "@/lib/requests";
@@ -461,7 +462,7 @@ export async function teamsTestAction(_: ActionState): Promise<ActionState> {
 
 export async function teamsRetryAction(_: ActionState): Promise<ActionState> {
   await requirePerm("settings.manage");
-  if (!teamsAutoConfigured()) return fail("مفاتيح مايكروسوفت غير مضافة في Railway بعد.");
+  if (!(await autoMeetingsReady())) return fail("لم يُربط Google Meet ولا Teams بعد.");
   await q(`UPDATE bookings SET teams_attempts = 0 WHERE status = 'scheduled' AND teams_source <> 'auto' AND ends_at > now()`);
   const r = await retryPendingMeetings(100);
   revalidatePath("/admin", "layout");
@@ -531,4 +532,27 @@ export async function voidBonusAction(fd: FormData) {
   if (row) await audit("bonus.void", "user", row.teacher_id, admin.id, { bonus: id, reason });
   revalidatePath("/admin", "layout");
   revalidatePath("/teacher", "layout");
+}
+
+// ---------------------------------------------------------------------------
+// Google Meet
+// ---------------------------------------------------------------------------
+export async function googleTestAction(_: ActionState): Promise<ActionState> {
+  const admin = await requirePerm("settings.manage");
+  try {
+    const s = await createSpace();
+    await audit("google.test", "google", null, admin.id, { ok: true });
+    return { ok: `الربط يعمل ✓ أُنشئ اجتماع تجريبي: ${s.uri}` };
+  } catch (e) {
+    await audit("google.test", "google", null, admin.id, { ok: false });
+    return fail(`فشل الاختبار: ${(e as Error).message}`);
+  }
+}
+
+export async function googleDisconnectAction(fd: FormData) {
+  const admin = await requirePerm("settings.manage");
+  void fd;
+  await disconnectGoogle();
+  await audit("google.disconnect", "google", null, admin.id);
+  revalidatePath("/admin/teams");
 }

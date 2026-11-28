@@ -55,8 +55,8 @@ export const teamsLink = z
   .string()
   .trim()
   .max(600)
-  .refine((v) => v === "" || /^https:\/\/(teams\.microsoft\.com|teams\.live\.com)\//.test(v),
-    "رابط Teams يبدأ بـ https://teams.microsoft.com أو https://teams.live.com");
+  .refine((v) => v === "" || /^https:\/\/(teams\.microsoft\.com|teams\.live\.com|meet\.google\.com)\//.test(v),
+    "الرابط يكون من Google Meet (https://meet.google.com/…) أو من Teams");
 
 /** Teacher fields without the refinement, so other forms can pick from them. */
 export const teacherFields = z.object({

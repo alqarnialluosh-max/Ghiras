@@ -43,7 +43,7 @@ export default async function TeacherStatsPage() {
                     <Link href={`/admin/teachers/${r.id}`} className="font-medium text-lav-700 underline">{r.full_name}</Link>
                     <p className="text-xs text-muted">
                       {r.status === "active" ? "معتمدة" : r.status === "pending" ? "بانتظار التفعيل" : "موقوفة"}
-                      {!r.has_teams && " · بدون Teams"}{r.last_session ? ` · آخر حصة ${shortDate(r.last_session)}` : ""}
+                      {!r.has_teams && " · بدون رابط ثابت"}{r.last_session ? ` · آخر حصة ${shortDate(r.last_session)}` : ""}
                     </p>
                   </td>
                   <td>{r.completed}</td><td>{r.student_absent}</td>

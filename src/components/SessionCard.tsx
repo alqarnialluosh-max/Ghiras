@@ -23,7 +23,7 @@ export function TeamsButton({ b, size = "" }: { b: BookingView; size?: string })
   return (
     <a href={b.teams_link} target="_blank" rel="noopener noreferrer"
       className={`btn ${s === "open" ? "btn-sky" : "btn-ghost"} ${size}`}>
-      {s === "open" ? "ادخل الحصة على Teams" : "رابط Teams"}
+      {s === "open" ? "ادخل الحصة الآن" : "رابط الحصة"}
     </a>
   );
 }

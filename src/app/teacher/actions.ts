@@ -37,7 +37,7 @@ export async function updateProfileAction(_: ActionState, fd: FormData): Promise
   );
   await audit("teacher.profile_update", "user", user.id, user.id);
   revalidatePath("/teacher", "layout");
-  return { ok: "تم حفظ ملفك. تأخذ الحصص الجديدة رابط Teams المحدّث، وتبقى الحصص المحجوزة على رابطها." };
+  return { ok: "تم حفظ ملفك. تأخذ الحصص الجديدة رابطك المحدّث، وتبقى الحصص المحجوزة على رابطها." };
 }
 
 const time = z.string().regex(/^\d{2}:\d{2}$/, "وقت غير صحيح").transform((v) => {

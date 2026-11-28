@@ -3,7 +3,7 @@ import { kickOutbox, queueRequestEmails, queueRescheduleEmails } from "./email";
 import type { PoolClient } from "pg";
 import { isExclusionViolation, q, tx } from "./db";
 import { audit } from "./audit";
-import { cancelMeeting, ensureBookingMeeting, teamsAutoConfigured } from "./teams";
+import { autoMeetingsReady, cancelMeeting, ensureBookingMeeting } from "./teams";
 import {
   BOOKING_HORIZON_DAYS, DEAD_STATUSES, MIN_LEAD_HOURS, OPEN_STATUSES, SESSION_MINUTES, SLOT_STEP_MINUTES, TEACHER_RESPONSE_HOURS,
   type Subject, type Track,
@@ -62,7 +62,7 @@ export async function eligibleTeachers(subject: Subject, grade: number) {
         AND p.approved_at IS NOT NULL AND p.accepting AND (p.teams_link IS NOT NULL OR $3)
         AND $1::subject_code = ANY(p.subjects) AND $2 BETWEEN p.min_grade AND p.max_grade
       ORDER BY u.full_name`,
-    [subject, grade, teamsAutoConfigured()],
+    [subject, grade, await autoMeetingsReady()],
   );
 }
 
@@ -197,15 +197,17 @@ export async function adminReschedule(input: {
       if (!old) throw new BookingError("الحصة غير موجودة.");
       if (old.status === "rescheduled") throw new BookingError("هذه الحصة أعيدت جدولتها من قبل.");
       if ((DEAD_STATUSES as readonly string[]).includes(old.status)) throw new BookingError("هذا الطلب مغلق، ولا يمكن إعادة جدولته.");
-      const auto = teamsAutoConfigured();
+      const auto = await autoMeetingsReady();
       const { rows: t } = await c.query<{ teams_link: string | null }>(
         `SELECT p.teams_link FROM users u JOIN teacher_profiles p ON p.user_id = u.id
           WHERE u.id = $1 AND u.role = 'teacher' AND u.status = 'active' AND p.approved_at IS NOT NULL
             AND (p.teams_link IS NOT NULL OR $3) AND $2::subject_code = ANY(p.subjects)`,
         [input.teacherId, old.subject, auto],
       );
-      if (!t[0]) throw new BookingError("المعلمة المختارة لا تدرّس هذه المادة أو ليس لديها رابط Teams.");
-      oldEventId = (await c.query<{ teams_event_id: string | null }>(`SELECT teams_event_id FROM bookings WHERE id = $1`, [old.id])).rows[0]?.teams_event_id ?? null;
+      if (!t[0]) throw new BookingError("المعلمة المختارة لا تدرّس هذه المادة أو ليس لديها رابط اجتماع.");
+      // only a Teams calendar event needs cancelling; a Meet space simply stops being used
+      oldEventId = (await c.query<{ teams_event_id: string | null }>(
+        `SELECT teams_event_id FROM bookings WHERE id = $1 AND meeting_provider = 'teams'`, [old.id])).rows[0]?.teams_event_id ?? null;
 
       await c.query(`UPDATE bookings SET status = 'rescheduled' WHERE id = $1`, [old.id]);
       const { rows: ins } = await c.query<{ id: string }>(
@@ -221,7 +223,7 @@ export async function adminReschedule(input: {
       await queueRescheduleEmails(c, ins[0].id);
       return ins[0].id;
     });
-    // Teams: new meeting for the new time, cancel the old one (best effort)
+    // New meeting for the new time; cancel the old Teams event if there was one (best effort)
     await ensureBookingMeeting(newId).catch(() => false);
     if (oldEventId) await cancelMeeting(oldEventId, input.bookingId).catch(() => false);
     await kickOutbox();
@@ -273,7 +275,7 @@ export async function createBooking(input: {
       if (!st[0]) throw new BookingError("الطالب غير موجود.");
 
       // Teacher must be eligible and available by her weekly schedule at this time
-      const auto = teamsAutoConfigured();
+      const auto = await autoMeetingsReady();
       const { rows: t } = await c.query<{ teams_link: string | null }>(
         `SELECT p.teams_link FROM users u JOIN teacher_profiles p ON p.user_id = u.id
           WHERE u.id = $1 AND u.role = 'teacher' AND u.status = 'active' AND u.archived_at IS NULL

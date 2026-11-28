@@ -13,7 +13,7 @@ import { TeacherRequestForm } from "@/components/RequestForms";
 export const metadata = { title: "تفاصيل الحصة" };
 
 const DONE: Record<string, string> = {
-  accepted: "تم قبول الحصة، وأُرسل التأكيد ورابط Teams لولي الأمر.",
+  accepted: "تم قبول الحصة، وأُرسل التأكيد ورابط الحصة لولي الأمر.",
   proposed: "شكراً، أرسلنا الموعد لولي الأمر ليؤكده، ويصلكِ التأكيد بعد موافقته.",
   declined: "وصل اعتذاركِ للإدارة، وتحوّل الطلب تلقائياً.",
 };

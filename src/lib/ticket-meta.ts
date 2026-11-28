@@ -9,7 +9,7 @@ export const SEVERITY = {
 export type Severity = keyof typeof SEVERITY;
 
 export const TICKET_CATEGORY = {
-  teams: "Teams والاجتماعات",
+  teams: "الاجتماعات (Meet / Teams)",
   technical: "عطل تقني في الموقع",
   account: "الحساب وتسجيل الدخول",
   booking: "الحجز والمواعيد",

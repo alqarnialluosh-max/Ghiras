@@ -47,17 +47,17 @@ export const TEMPLATES: Record<string, (p: P) => Rendered> = {
   }),
   booking_parent: (p) => layout({
     title: `تم حجز حصة ${p.subject} لـ${p.student}`,
-    lines: [`الموعد: ${p.date}، الساعة ${p.time} بتوقيت الرياض.`, `المعلمة: ${p.teacher}.`, "تجد رابط Teams ووصف الحصة في صفحتها، ويُتاح زر الدخول قبل الموعد بربع ساعة."],
+    lines: [`الموعد: ${p.date}، الساعة ${p.time} بتوقيت الرياض.`, `المعلمة: ${p.teacher}.`, "تجد رابط الحصة ووصفها في صفحتها، ويُتاح زر الدخول قبل الموعد بربع ساعة."],
     cta: { label: "صفحة الحصة", href: absUrl(`/parent/sessions/${p.booking}`) },
   }),
   booking_teacher: (p) => layout({
     title: `حصة جديدة: ${p.subject} · ${p.date}`,
-    lines: [`أهلاً ${p.name}،`, `حُجزت لكِ حصة مع ${p.student} (${p.grade})، يوم ${p.date} الساعة ${p.time} بتوقيت الرياض.`, "تجدين وصف الحصة وأهداف الأسرة ورابط Teams في صفحة الحصة."],
+    lines: [`أهلاً ${p.name}،`, `حُجزت لكِ حصة مع ${p.student} (${p.grade})، يوم ${p.date} الساعة ${p.time} بتوقيت الرياض.`, "تجدين وصف الحصة وأهداف الأسرة ورابط الاجتماع في صفحة الحصة."],
     cta: { label: "صفحة الحصة", href: absUrl(`/teacher/sessions/${p.booking}`) },
   }),
   rescheduled: (p) => layout({
     title: "تغيّر موعد الحصة",
-    lines: [`أصبح موعد حصة ${p.subject} مع ${p.student}: ${p.date}، الساعة ${p.time} بتوقيت الرياض.`, `المعلمة: ${p.teacher}.`, "رابط Teams الجديد في صفحة الحصة."],
+    lines: [`أصبح موعد حصة ${p.subject} مع ${p.student}: ${p.date}، الساعة ${p.time} بتوقيت الرياض.`, `المعلمة: ${p.teacher}.`, "رابط الاجتماع الجديد في صفحة الحصة."],
     cta: { label: "صفحة الحصة", href: absUrl(p.path) },
   }),
   reminder: (p) => layout({
@@ -117,13 +117,13 @@ Object.assign(TEMPLATES, {
   request_parent: (p: P) => layout({
     title: `استلمنا طلب حصة ${p.student}`,
     lines: [`${p.subject} يوم ${p.date} الساعة ${p.time} مع ${p.teacher}.`,
-      `تؤكد المعلمة خلال ${p.hours} ساعات، ونرسل لك رابط Teams فور التأكيد. ولن تُخصم الحصة من رصيدك إلا بعد التأكيد.`],
+      `تؤكد المعلمة خلال ${p.hours} ساعات، ونرسل لك رابط الحصة فور التأكيد. ولن تُخصم الحصة من رصيدك إلا بعد التأكيد.`],
     cta: { label: "متابعة الطلب", href: absUrl(`/parent/sessions/${p.booking}`) },
   }),
   request_moved: (p: P) => layout({
     title: `حوّلنا طلب ${p.student} إلى ${p.teacher}`,
     lines: [`لم تتمكن المعلمة السابقة من تأكيد الموعد، فحوّلنا طلبك تلقائياً إلى ${p.teacher} في الموعد نفسه: ${p.date}، الساعة ${p.time}.`,
-      "سنرسل لك رابط Teams فور التأكيد."],
+      "سنرسل لك رابط الحصة فور التأكيد."],
     cta: { label: "متابعة الطلب", href: absUrl(`/parent/sessions/${p.booking}`) },
   }),
   proposal_teacher: (p: P) => layout({

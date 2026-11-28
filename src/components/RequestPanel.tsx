@@ -27,7 +27,7 @@ export function RequestPanel({ b, viewer, children }: { b: BookingView; viewer: 
   } else {
     if (b.status === "requested") {
       title = `بانتظار تأكيد ${b.teacher_name}`;
-      body = `تؤكد المعلمة قبل ${deadline(b.respond_by)}، ونرسل لك رابط Teams فور التأكيد. لن تُخصم الحصة من رصيدك قبل التأكيد، وإذا تعذّر الموعد نحوّل الطلب أو نقترح عليك أقرب بديل.`;
+      body = `تؤكد المعلمة قبل ${deadline(b.respond_by)}، ونرسل لك رابط الحصة فور التأكيد. لن تُخصم الحصة من رصيدك قبل التأكيد، وإذا تعذّر الموعد نحوّل الطلب أو نقترح عليك أقرب بديل.`;
     } else if (b.status === "proposed" && b.proposal_stage === "teacher") {
       title = "نجهّز لك موعداً بديلاً";
       body = "الموعد الذي طلبته لم يعد متاحاً، فاخترنا أقرب موعد ونتأكد الآن من المعلمة. سنرسل لك الاقتراح خلال ساعات قليلة.";

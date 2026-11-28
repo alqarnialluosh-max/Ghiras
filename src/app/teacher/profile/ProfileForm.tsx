@@ -10,10 +10,10 @@ export function ProfileForm({ p, auto = false }: { p: TeacherProfile; auto?: boo
   return (
     <form action={action} className="space-y-5">
       <FormMessage state={state} />
-      {auto && <p className="alert alert-info">تُنشأ روابط Teams تلقائياً لكل حصة. الرابط الدائم أدناه اختياري ويُستخدم احتياطاً فقط.</p>}
-      <Field name="teams_link" label={auto ? "رابط اجتماع Teams الدائم (احتياطي)" : "رابط اجتماع Teams الدائم"} dir="ltr" state={state} defaultValue={p.teams_link ?? ""}
-        placeholder="https://teams.microsoft.com/l/meetup-join/..."
-        hint="من Teams: التقويم ← اجتماع جديد ← انسخي رابط الانضمام. يظهر هذا الرابط للطلاب في جميع حصصك." />
+      {auto && <p className="alert alert-info">يُنشأ رابط اجتماع خاص لكل حصة تلقائياً. الرابط الدائم أدناه اختياري ويُستخدم احتياطاً فقط.</p>}
+      <Field name="teams_link" label={auto ? "رابط اجتماعك الدائم (احتياطي)" : "رابط اجتماعك الدائم"} dir="ltr" state={state} defaultValue={p.teams_link ?? ""}
+        placeholder="https://meet.google.com/abc-defg-hij"
+        hint="من Google Meet: meet.google.com ← اجتماع جديد ← إنشاء اجتماع لاحقاً ← انسخي الرابط. ويُقبل رابط Teams أيضاً." />
       <fieldset className="field">
         <legend className="mb-2 font-medium">المواد</legend>
         <div className="flex flex-wrap gap-3">

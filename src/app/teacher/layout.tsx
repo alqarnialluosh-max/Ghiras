@@ -7,7 +7,7 @@ const NAV = [
   { href: "/teacher", label: "الرئيسية" },
   { href: "/teacher/sessions", label: "حصصي" },
   { href: "/teacher/availability", label: "أوقاتي" },
-  { href: "/teacher/profile", label: "ملفي ورابط Teams" },
+  { href: "/teacher/profile", label: "ملفي" },
   { href: "/teacher/earnings", label: "مستحقاتي" },
 ];
 

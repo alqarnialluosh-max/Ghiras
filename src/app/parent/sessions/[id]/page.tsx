@@ -26,7 +26,7 @@ export default async function ParentSession({ params, searchParams }: {
         <p role="status" className="alert alert-ok mb-6">أرسلنا طلبك إلى {b.teacher_name}. ستصلك رسالة فور التأكيد.</p>
       )}
       {sp.confirmed && b.status === "scheduled" && (
-        <p role="status" className="alert alert-ok mb-6">تم تأكيد الموعد، ورابط Teams جاهز في هذه الصفحة.</p>
+        <p role="status" className="alert alert-ok mb-6">تم تأكيد الموعد، ورابط الحصة جاهز في هذه الصفحة.</p>
       )}
       <RequestPanel b={b} viewer="parent">
         {b.status === "proposed" && b.proposal_stage === "parent" ? <ProposalForm id={b.id} /> : null}
