@@ -1,3 +1,4 @@
+import { site } from "@/config/site";
 export const metadata = { title: "سياسة الخصوصية" };
 
 export default function Privacy() {
@@ -31,7 +32,7 @@ export default function Privacy() {
       <p>تتم الحصص عبر روابط Microsoft Teams، وتخضع بيانات الاجتماع لسياسة خصوصية Microsoft. لا نسجّل الحصص.</p>
 
       <h2>حقوقك</h2>
-      <p>يحق لك طلب نسخة من بياناتك أو تصحيحها بالتواصل مع إدارة غِراس على <a href="mailto:Alialqarni329@gmail.com" className="text-lav-700 underline" dir="ltr">Alialqarni329@gmail.com</a> أو الجوال <span dir="ltr">0565975402</span>.</p>
+      <p>يحق لك طلب نسخة من بياناتك أو تصحيحها بالتواصل مع إدارة غِراس على <a href={`mailto:${site.contact.email}`} className="text-lav-700 underline" dir="ltr">{site.contact.email}</a> أو الجوال <span dir="ltr">0565975402</span>.</p>
     </article>
   );
 }

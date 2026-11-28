@@ -24,7 +24,7 @@ export const site = {
   contact: {
     /** Displayed phone numbers (international format, no +). Each gets call + WhatsApp links. */
     phones: ["966565975402", "966546229962"],
-    email: "Alialqarni329@gmail.com",
+    email: "info@ghirasedu.site",
   },
 
 
