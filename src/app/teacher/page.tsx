@@ -4,7 +4,6 @@ import { SessionCard } from "@/components/SessionCard";
 import { needsEmailVerification, requireRole } from "@/lib/auth";
 import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
 import { one } from "@/lib/db";
-import { env } from "@/lib/env";
 import { bookingsFor, openRequestsFor } from "@/lib/queries";
 import { teacherProfile, PAYABLE } from "@/lib/teachers";
 import { site } from "@/config/site";
@@ -16,8 +15,12 @@ export default async function TeacherHome() {
     teacherProfile(user.id),
     bookingsFor("teacher", user.id, "upcoming", 6),
     one<{ n: string }>(`SELECT count(*) n FROM availability_rules WHERE teacher_id = $1 AND active`, [user.id]),
-    one<{ n: string }>(
-      `SELECT count(*) n FROM bookings WHERE teacher_id = $1 AND status = ANY($2::booking_status[])
+    one<{ n: string; pay: string }>(
+      `SELECT count(*) n,
+              coalesce(sum(teacher_rate_sar), 0)
+                + (SELECT coalesce(sum(amount_sar), 0) FROM teacher_bonuses WHERE teacher_id = $1 AND voided_at IS NULL
+                     AND period_month = date_trunc('month', now() AT TIME ZONE 'Asia/Riyadh')::date) pay
+         FROM bookings WHERE teacher_id = $1 AND status = ANY($2::booking_status[])
           AND date_trunc('month', starts_at AT TIME ZONE 'Asia/Riyadh') = date_trunc('month', now() AT TIME ZONE 'Asia/Riyadh')`,
       [user.id, PAYABLE]),
     openRequestsFor("teacher", user.id),
@@ -58,7 +61,7 @@ export default async function TeacherHome() {
       <div className={`mb-10 grid gap-4 ${approved ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <div className="panel p-5"><p className="text-sm text-muted">حصص قادمة</p><p className="font-display text-3xl">{upcoming.length}</p></div>
         <div className="panel p-5"><p className="text-sm text-muted">حصص هذا الشهر</p><p className="font-display text-3xl">{month?.n ?? 0}</p></div>
-        {approved && <div className="panel p-5"><p className="text-sm text-muted">مستحق هذا الشهر</p><p className="font-display text-3xl">{Number(month?.n ?? 0) * env.teacherRateSar} <span className="text-base text-muted">ريال</span></p></div>}
+        {approved && <div className="panel p-5"><p className="text-sm text-muted">مستحق هذا الشهر</p><p className="font-display text-3xl">{Number(month?.pay ?? 0)} <span className="text-base text-muted">ريال</span></p></div>}
       </div>
 
       <section aria-labelledby="up">

@@ -7,7 +7,6 @@ import { hashPassword, requirePerm, requireRole, revokeAllSessions } from "@/lib
 import { adminReschedule, BookingError } from "@/lib/booking";
 import { encrypt, makeReference, normalizeSaudiPhone, phoneHash, randomToken } from "@/lib/crypto";
 import { isUniqueViolation, one, pool, q, tx } from "@/lib/db";
-import { env } from "@/lib/env";
 import { activateSubscription } from "@/lib/subscriptions";
 import { adminRecipient, canSendTo, dispatchOutbox, emailMode, enqueue, enqueueForUser, kickOutbox } from "@/lib/email";
 import { postPayoutExpense } from "@/lib/accounting";
@@ -135,20 +134,26 @@ export async function recordPayoutAction(fd: FormData) {
   const [y, mo] = month.split("-").map(Number);
   const start = `${month}-01`;
   const end = new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
-  const rate = env.teacherRateSar;
   await tx(async (c) => {
-    const { rows } = await c.query<{ n: string }>(
-      `SELECT count(*) n FROM bookings WHERE teacher_id = $1 AND status = ANY($2::booking_status[])
+    // each session pays the rate frozen on it when it was confirmed
+    const { rows } = await c.query<{ n: string; pay: string }>(
+      `SELECT count(*) n, coalesce(sum(teacher_rate_sar), 0) pay FROM bookings WHERE teacher_id = $1 AND status = ANY($2::booking_status[])
           AND (starts_at AT TIME ZONE 'Asia/Riyadh')::date BETWEEN $3::date AND $4::date`,
       [teacherId, PAYABLE, start, end]);
-    const n = Number(rows[0].n);
-    if (n === 0) return;
+    const { rows: bo } = await c.query<{ id: string; amount_sar: string }>(
+      `SELECT id, amount_sar FROM teacher_bonuses WHERE teacher_id = $1 AND period_month = $2::date AND voided_at IS NULL AND payout_id IS NULL FOR UPDATE`,
+      [teacherId, start]);
+    const n = Number(rows[0].n), pay = Number(rows[0].pay);
+    const bonus = bo.reduce((s, b) => s + Number(b.amount_sar), 0);
+    if (n === 0 && bonus === 0) return;
     const { rows: po } = await c.query<{ id: string }>(
-      `INSERT INTO payouts (teacher_id, period_start, period_end, sessions_count, rate_sar, amount_sar, paid_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (teacher_id, period_start, period_end) DO NOTHING RETURNING id`,
-      [teacherId, start, end, n, rate, n * rate, admin.id]);
-    if (po[0]) await postPayoutExpense(c, po[0].id); // accounting: teacher pay expense
-    await audit("payout.record", "user", teacherId, admin.id, { month, sessions: n, amount: n * rate }, c);
+      `INSERT INTO payouts (teacher_id, period_start, period_end, sessions_count, rate_sar, amount_sar, bonus_sar, paid_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (teacher_id, period_start, period_end) DO NOTHING RETURNING id`,
+      [teacherId, start, end, n, n ? Math.round((pay / n) * 100) / 100 : 0, pay + bonus, bonus, admin.id]);
+    if (!po[0]) return;
+    if (bo.length) await c.query(`UPDATE teacher_bonuses SET payout_id = $2 WHERE id = ANY($1::uuid[])`, [bo.map((b) => b.id), po[0].id]);
+    await postPayoutExpense(c, po[0].id); // accounting: teacher pay expense (sessions + bonuses)
+    await audit("payout.record", "user", teacherId, admin.id, { month, sessions: n, session_pay: pay, bonus, amount: pay + bonus }, c);
   });
   revalidatePath("/admin", "layout");
   await kickOutbox();
@@ -161,15 +166,18 @@ export async function updatePlanAction(_: ActionState, fd: FormData): Promise<Ac
     price_sar: z.coerce.number().min(0).max(100000),
     salla_url: z.string().trim().max(500).refine((v) => v === "" || /^https:\/\//.test(v), "الرابط يبدأ بـ https://"),
     salla_product_id: z.string().trim().max(60),
+    teacher_rate_sar: z.coerce.number().min(0, "أجر المعلمة لا يكون سالباً").max(10000),
     active: z.enum(["on"]).optional(),
   }).safeParse(Object.fromEntries(fd));
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "بيانات غير صحيحة.");
   const d = parsed.data;
-  await q(`UPDATE plans SET price_sar = $2, salla_url = NULLIF($3,''), salla_product_id = NULLIF($4,''), active = $5 WHERE code = $1`,
-    [d.code, d.price_sar, d.salla_url, d.salla_product_id, d.active === "on"]);
-  await audit("plan.update", "plan", d.code, admin.id, { price: d.price_sar, active: d.active === "on" });
+  const before = await one<{ price_sar: string; teacher_rate_sar: string }>(`SELECT price_sar, teacher_rate_sar FROM plans WHERE code = $1`, [d.code]);
+  await q(`UPDATE plans SET price_sar = $2, salla_url = NULLIF($3,''), salla_product_id = NULLIF($4,''), active = $5, teacher_rate_sar = $6 WHERE code = $1`,
+    [d.code, d.price_sar, d.salla_url, d.salla_product_id, d.active === "on", d.teacher_rate_sar]);
+  await audit("plan.update", "plan", d.code, admin.id,
+    { price: [Number(before?.price_sar), d.price_sar], teacher_rate: [Number(before?.teacher_rate_sar), d.teacher_rate_sar], active: d.active === "on" });
   revalidatePath("/", "layout");
-  return { ok: "تم حفظ الباقة. السعر الجديد يطبق على الاشتراكات الجديدة فقط." };
+  return { ok: "حُفظت الباقة. سعر العميل يطبق على الاشتراكات الجديدة، وأجر المعلمة على الحصص التي تُؤكد من الآن، والسابقة تبقى بأجرها." };
 }
 
 export async function resetPasswordAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -486,4 +494,41 @@ export async function reviewDeclineAction(fd: FormData) {
   if (!id.success) return;
   await markDeclineReviewed(admin.id, id.data);
   revalidatePath("/admin/requests");
+}
+
+// ------------------------------------------------------------------ teacher bonuses
+
+export async function addBonusAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const admin = await requirePerm("finance.manage");
+  const parsed = z.object({
+    teacher_id: uuid,
+    amount_sar: z.coerce.number().positive("اكتب مبلغاً أكبر من صفر").max(100000),
+    month: z.string().regex(/^\d{4}-\d{2}$/, "اختر الشهر"),
+    reason: z.string().trim().min(3, "اكتب سبب المكافأة").max(500),
+  }).safeParse(Object.fromEntries(fd));
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "بيانات غير صحيحة.", undefined, keepValues(fd));
+  const d = parsed.data;
+  const paid = await one(`SELECT 1 FROM payouts WHERE teacher_id = $1 AND to_char(period_start, 'YYYY-MM') = $2`, [d.teacher_id, d.month]);
+  if (paid) return fail("أُغلق هذا الشهر بتسجيل الدفع. اختر الشهر الحالي أو القادم.", undefined, keepValues(fd));
+  const t = await one(`SELECT 1 FROM users WHERE id = $1 AND role = 'teacher'`, [d.teacher_id]);
+  if (!t) return fail("المعلمة غير موجودة.");
+  const row = await one<{ id: string }>(
+    `INSERT INTO teacher_bonuses (teacher_id, amount_sar, reason, period_month, created_by) VALUES ($1,$2,$3,($4 || '-01')::date,$5) RETURNING id`,
+    [d.teacher_id, d.amount_sar, d.reason, d.month, admin.id]);
+  await audit("bonus.add", "user", d.teacher_id, admin.id, { bonus: row?.id, amount: d.amount_sar, month: d.month, reason: d.reason });
+  revalidatePath("/admin", "layout");
+  revalidatePath("/teacher", "layout");
+  return { ok: `أُضيفت مكافأة ${d.amount_sar} ﷼ لشهر ${d.month}، وتُصرف مع أجر ذلك الشهر.` };
+}
+
+export async function voidBonusAction(fd: FormData) {
+  const admin = await requirePerm("finance.manage");
+  const id = uuid.parse(fd.get("id"));
+  const reason = String(fd.get("reason") ?? "").trim().slice(0, 300) || "إلغاء من الإدارة";
+  const row = await one<{ teacher_id: string }>(
+    `UPDATE teacher_bonuses SET voided_at = now(), voided_by = $2, void_reason = $3 WHERE id = $1 AND voided_at IS NULL AND payout_id IS NULL RETURNING teacher_id`,
+    [id, admin.id, reason]);
+  if (row) await audit("bonus.void", "user", row.teacher_id, admin.id, { bonus: id, reason });
+  revalidatePath("/admin", "layout");
+  revalidatePath("/teacher", "layout");
 }

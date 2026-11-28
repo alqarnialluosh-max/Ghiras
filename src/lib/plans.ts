@@ -5,7 +5,7 @@ import { site } from "@/config/site";
 export type Plan = {
   code: string; name_ar: string; price_sar: string; sessions_count: number; bonus_sessions: number;
   weekly_limit: number | null; duration_days: number; all_subjects: boolean;
-  salla_url: string | null; salla_product_id: string | null; active: boolean;
+  salla_url: string | null; salla_product_id: string | null; active: boolean; teacher_rate_sar: string;
 };
 
 export async function getPlans(includeInactive = false): Promise<Plan[]> {

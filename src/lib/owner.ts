@@ -1,19 +1,17 @@
 import "server-only";
 import { one, q } from "./db";
-import { env } from "./env";
 import { PAYABLE } from "./teachers";
 
 const MONTH_NOW = `date_trunc('month', now() AT TIME ZONE 'Asia/Riyadh')`;
 const monthOf = (col: string) => `date_trunc('month', ${col} AT TIME ZONE 'Asia/Riyadh')`;
 
 export async function ownerOverview() {
-  const rate = env.teacherRateSar;
   const c = await one<{
     parents: string; parents_new_month: string; parents_active: string;
     teachers_active: string; teachers_pending: string;
     subs_active: string; subs_pending: string; subs_paid_total: string; subs_paid_month: string;
     revenue_month: string; revenue_last_month: string; revenue_total: string;
-    payable_month: string; payable_total: string; paid_total: string;
+    payable_month: string; payable_total: string; paid_total: string; cost_month: string; earned_total: string;
     upcoming: string; completed_month: string; student_absent_month: string; teacher_absent_month: string;
     unmatched: string;
   }>(`
@@ -32,6 +30,11 @@ export async function ownerOverview() {
       (SELECT coalesce(sum(price_sar),0) FROM subscriptions WHERE starts_at IS NOT NULL) revenue_total,
       (SELECT count(*) FROM bookings WHERE status = ANY($1::booking_status[]) AND ${monthOf("starts_at")} = ${MONTH_NOW}) payable_month,
       (SELECT count(*) FROM bookings WHERE status = ANY($1::booking_status[])) payable_total,
+      -- teacher pay = each session's frozen rate + bonuses (not voided)
+      (SELECT coalesce(sum(teacher_rate_sar),0) FROM bookings WHERE status = ANY($1::booking_status[]) AND ${monthOf("starts_at")} = ${MONTH_NOW})
+        + (SELECT coalesce(sum(amount_sar),0) FROM teacher_bonuses WHERE voided_at IS NULL AND period_month = ${MONTH_NOW}::date) cost_month,
+      (SELECT coalesce(sum(teacher_rate_sar),0) FROM bookings WHERE status = ANY($1::booking_status[]))
+        + (SELECT coalesce(sum(amount_sar),0) FROM teacher_bonuses WHERE voided_at IS NULL) earned_total,
       (SELECT coalesce(sum(amount_sar),0) FROM payouts) paid_total,
       (SELECT count(*) FROM bookings WHERE status='scheduled' AND ends_at >= now()) upcoming,
       (SELECT count(*) FROM bookings WHERE status='completed' AND ${monthOf("starts_at")} = ${MONTH_NOW}) completed_month,
@@ -41,15 +44,14 @@ export async function ownerOverview() {
 
   const n = (v?: string) => Number(v ?? 0);
   const revenueMonth = n(c?.revenue_month);
-  const costMonth = n(c?.payable_month) * rate;
-  const earnedTotal = n(c?.payable_total) * rate;
+  const costMonth = n(c?.cost_month);
+  const earnedTotal = n(c?.earned_total);
   return {
-    rate,
     parents: n(c?.parents), parentsNewMonth: n(c?.parents_new_month), parentsActive: n(c?.parents_active),
     teachersActive: n(c?.teachers_active), teachersPending: n(c?.teachers_pending),
     subsActive: n(c?.subs_active), subsPending: n(c?.subs_pending), subsPaidTotal: n(c?.subs_paid_total), subsPaidMonth: n(c?.subs_paid_month),
     revenueMonth, revenueLastMonth: n(c?.revenue_last_month), revenueTotal: n(c?.revenue_total),
-    costMonth, profitMonth: revenueMonth - costMonth,
+    costMonth, profitMonth: revenueMonth - costMonth, payableMonth: n(c?.payable_month),
     earnedTotal, paidTotal: n(c?.paid_total), outstanding: earnedTotal - n(c?.paid_total),
     upcoming: n(c?.upcoming), completedMonth: n(c?.completed_month),
     studentAbsentMonth: n(c?.student_absent_month), teacherAbsentMonth: n(c?.teacher_absent_month),
@@ -71,19 +73,20 @@ export function subscribersByPlan() {
 
 /** Revenue vs teacher cost for the last N months (Riyadh months). */
 export async function monthlyFinance(months = 6) {
-  const rows = await q<{ month: string; revenue: string; subs: string; sessions: string }>(`
+  const rows = await q<{ month: string; revenue: string; subs: string; sessions: string; cost: string }>(`
     WITH m AS (
       SELECT generate_series(${MONTH_NOW} - make_interval(months => $2 - 1), ${MONTH_NOW}, interval '1 month') AS month
     )
     SELECT to_char(m.month, 'YYYY-MM') AS month,
            (SELECT coalesce(sum(price_sar),0) FROM subscriptions s WHERE s.starts_at IS NOT NULL AND ${monthOf("s.starts_at")} = m.month) AS revenue,
            (SELECT count(*) FROM subscriptions s WHERE s.starts_at IS NOT NULL AND ${monthOf("s.starts_at")} = m.month) subs,
-           (SELECT count(*) FROM bookings b WHERE b.status = ANY($1::booking_status[]) AND ${monthOf("b.starts_at")} = m.month) sessions
+           (SELECT count(*) FROM bookings b WHERE b.status = ANY($1::booking_status[]) AND ${monthOf("b.starts_at")} = m.month) sessions,
+           (SELECT coalesce(sum(b.teacher_rate_sar),0) FROM bookings b WHERE b.status = ANY($1::booking_status[]) AND ${monthOf("b.starts_at")} = m.month)
+             + (SELECT coalesce(sum(amount_sar),0) FROM teacher_bonuses WHERE voided_at IS NULL AND period_month = m.month::date) AS cost
       FROM m ORDER BY m.month`, [PAYABLE, months]);
-  const rate = env.teacherRateSar;
   return rows.map((r) => {
     const revenue = Number(r.revenue);
-    const cost = Number(r.sessions) * rate;
+    const cost = Number(r.cost);
     return { month: r.month, revenue, subs: Number(r.subs), sessions: Number(r.sessions), cost, profit: revenue - cost };
   });
 }
@@ -95,13 +98,12 @@ export type TeacherStat = {
   last_session: Date | null;
 };
 
-/** Per-teacher sessions and money. Earned = payable sessions × rate; balance = earned − recorded payouts. */
+/** Per-teacher sessions and money. Earned = each payable session's frozen rate + bonuses; balance = earned − payouts. */
 export async function teacherStats(teacherId?: string): Promise<TeacherStat[]> {
-  const rate = env.teacherRateSar;
   const rows = await q<{
     id: string; full_name: string; email: string; status: string; approved_at: Date | null; teams_link: string | null;
     completed: string; student_absent: string; teacher_absent: string; upcoming: string;
-    payable_month: string; payable_total: string; paid: string; last_session: Date | null;
+    payable_month: string; payable_total: string; paid: string; last_session: Date | null; earned_month: string; earned_total: string;
   }>(`
     SELECT u.id, u.full_name, u.email, u.status, p.approved_at, p.teams_link,
       count(b.*) FILTER (WHERE b.status = 'completed') completed,
@@ -110,6 +112,10 @@ export async function teacherStats(teacherId?: string): Promise<TeacherStat[]> {
       count(b.*) FILTER (WHERE b.status = 'scheduled' AND b.ends_at >= now()) upcoming,
       count(b.*) FILTER (WHERE b.status = ANY($1::booking_status[]) AND ${monthOf("b.starts_at")} = ${MONTH_NOW}) payable_month,
       count(b.*) FILTER (WHERE b.status = ANY($1::booking_status[])) payable_total,
+      coalesce(sum(b.teacher_rate_sar) FILTER (WHERE b.status = ANY($1::booking_status[]) AND ${monthOf("b.starts_at")} = ${MONTH_NOW}), 0)
+        + (SELECT coalesce(sum(amount_sar),0) FROM teacher_bonuses tb WHERE tb.teacher_id = u.id AND tb.voided_at IS NULL AND tb.period_month = ${MONTH_NOW}::date) earned_month,
+      coalesce(sum(b.teacher_rate_sar) FILTER (WHERE b.status = ANY($1::booking_status[])), 0)
+        + (SELECT coalesce(sum(amount_sar),0) FROM teacher_bonuses tb WHERE tb.teacher_id = u.id AND tb.voided_at IS NULL) earned_total,
       (SELECT coalesce(sum(amount_sar),0) FROM payouts po WHERE po.teacher_id = u.id) paid,
       max(b.starts_at) FILTER (WHERE b.status = ANY($1::booking_status[])) last_session
     FROM users u JOIN teacher_profiles p ON p.user_id = u.id
@@ -119,13 +125,13 @@ export async function teacherStats(teacherId?: string): Promise<TeacherStat[]> {
     ORDER BY count(b.*) FILTER (WHERE b.status = ANY($1::booking_status[])) DESC, u.full_name`,
     teacherId ? [PAYABLE, teacherId] : [PAYABLE]);
   return rows.map((r) => {
-    const earned_total = Number(r.payable_total) * rate;
+    const earned_total = Number(r.earned_total);
     const paid = Number(r.paid);
     return {
       id: r.id, full_name: r.full_name, email: r.email, status: r.status, approved: !!r.approved_at, has_teams: !!r.teams_link,
       completed: Number(r.completed), student_absent: Number(r.student_absent), teacher_absent: Number(r.teacher_absent),
       upcoming: Number(r.upcoming), payable_month: Number(r.payable_month), payable_total: Number(r.payable_total),
-      earned_month: Number(r.payable_month) * rate, earned_total, paid, balance: earned_total - paid, last_session: r.last_session,
+      earned_month: Number(r.earned_month), earned_total, paid, balance: earned_total - paid, last_session: r.last_session,
     };
   });
 }

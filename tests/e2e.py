@@ -93,7 +93,7 @@ async def main():
         step("owner downloads the teacher's CV")
         await t.goto(f"{BASE}/teacher/earnings")
         await expect(t.get_by_text("شروط الأجر (خاصة بك)")).to_be_visible()
-        await expect(t.locator("strong", has_text="35 ريال")).to_be_visible()
+        await expect(t.locator("strong", has_text="35 ريال").first).to_be_visible()
         step("approved teacher sees her private pay terms")
 
         # ---- Configure Salla link for the plan (as admin would in /admin/plans)
@@ -102,7 +102,7 @@ async def main():
         await form.locator("input[name=salla_url]").fill("https://example-salla.test/ghiras-all")
         await form.locator("input[name=salla_product_id]").fill("111")
         await form.locator("button:has-text('حفظ')").click()
-        await expect(form.get_by_text("تم حفظ الباقة")).to_be_visible()
+        await expect(form.get_by_text("حُفظت الباقة")).to_be_visible()
         step("admin set Salla link + product id")
 
         # ---- Parent signs up, adds student, subscribes

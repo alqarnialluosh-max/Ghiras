@@ -1,5 +1,4 @@
 import { requirePerm } from "@/lib/auth";
-import { env } from "@/lib/env";
 import Link from "next/link";
 import { Empty, PageTitle } from "@/components/DashShell";
 import { sar, teacherStats } from "@/lib/owner";
@@ -11,10 +10,9 @@ export default async function TeacherStatsPage() {
   await requirePerm("finance.view");
   const rows = await teacherStats();
   const totals = rows.reduce((a, r) => ({
-    payable: a.payable + r.payable_total, month: a.month + r.payable_month,
+    payable: a.payable + r.payable_total, month: a.month + r.payable_month, monthPay: a.monthPay + r.earned_month,
     earned: a.earned + r.earned_total, paid: a.paid + r.paid, balance: a.balance + r.balance,
-  }), { payable: 0, month: 0, earned: 0, paid: 0, balance: 0 });
-  const rate = env.teacherRateSar;
+  }), { payable: 0, month: 0, monthPay: 0, earned: 0, paid: 0, balance: 0 });
 
   return (
     <>
@@ -58,7 +56,7 @@ export default async function TeacherStatsPage() {
             </tbody>
             <tfoot>
               <tr className="font-semibold">
-                <td className="p-3">الإجمالي</td><td colSpan={4} /><td className="p-3">{totals.month}</td><td className="p-3">{sar(totals.month * rate)}</td>
+                <td className="p-3">الإجمالي</td><td colSpan={4} /><td className="p-3">{totals.month}</td><td className="p-3">{sar(totals.monthPay)}</td>
                 <td className="p-3">{sar(totals.earned)}</td><td className="p-3">{sar(totals.paid)}</td><td className="p-3">{sar(totals.balance)}</td>
               </tr>
             </tfoot>

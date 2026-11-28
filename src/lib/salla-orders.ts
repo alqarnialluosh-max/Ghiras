@@ -34,7 +34,7 @@ export async function processSallaOrder(o: Parsed, raw: string, opts: { recordIg
     if (done[0]) return record("ignored", done[0].id);
 
     const { rows: plans } = await c.query<{ code: string }>(
-      `SELECT code FROM plans WHERE salla_product_id = ANY($1::text[]) OR code = ANY($1::text[])`, [o.productRefs]);
+      `SELECT code FROM plans WHERE salla_product_id = ANY($1::text[]) OR salla_legacy_ids && $1::text[] OR code = ANY($1::text[])`, [o.productRefs]);
     if (!plans.length || (!o.email && !o.phoneHash)) return record("unmatched");
 
     const { rows: cand } = await c.query<{ id: string; price_sar: string }>(

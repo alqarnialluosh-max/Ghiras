@@ -66,7 +66,9 @@ export async function postPayoutExpense(c: Runner, payoutId: string) {
   await c.query(
     `INSERT INTO ledger_entries (kind, category, amount_sar, entry_date, description, source, source_id, created_by)
      SELECT 'expense', 'أجور المعلمات', po.amount_sar, (po.paid_at AT TIME ZONE 'Asia/Riyadh')::date,
-            'أجر ' || u.full_name || ' — ' || po.sessions_count || ' حصة (' || to_char(po.period_start, 'YYYY-MM') || ')',
+            'أجر ' || u.full_name || ' — ' || po.sessions_count || ' حصة'
+              || CASE WHEN po.bonus_sar > 0 THEN ' + مكافأة ' || trim(to_char(po.bonus_sar, 'FM999999990.##')) || ' ﷼' ELSE '' END
+              || ' (' || to_char(po.period_start, 'YYYY-MM') || ')',
             'teacher_payout', po.id::text, po.paid_by
        FROM payouts po JOIN users u ON u.id = po.teacher_id WHERE po.id = $1 AND po.amount_sar > 0
      ON CONFLICT (source, source_id) WHERE source <> 'manual' DO NOTHING`, [payoutId]);

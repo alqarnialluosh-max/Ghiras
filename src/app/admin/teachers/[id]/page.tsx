@@ -1,5 +1,6 @@
 import { requirePerm } from "@/lib/auth";
-import { env } from "@/lib/env";
+import { can } from "@/lib/permissions";
+import { BonusForm } from "./BonusForm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageTitle } from "@/components/DashShell";
@@ -9,27 +10,29 @@ import { one, q } from "@/lib/db";
 import { GRADES, SUBJECTS } from "@/lib/domain";
 import { sar, teacherStats } from "@/lib/owner";
 import { displayPhone } from "@/lib/phone";
-import { monthlyEarnings, payoutsFor, teacherProfile } from "@/lib/teachers";
-import { dateLabel, shortDate, timeLabel } from "@/lib/time";
-import { recordPayoutAction, setTeacherStatusAction } from "../../actions";
+import { bonusesFor, monthlyEarnings, payoutsFor, teacherProfile } from "@/lib/teachers";
+import { dateLabel, riyadhDateKey, shortDate, timeLabel } from "@/lib/time";
+import { recordPayoutAction, setTeacherStatusAction, voidBonusAction } from "../../actions";
 
 export const metadata = { title: "ملف المعلمة" };
 
 export default async function TeacherDetail({ params }: { params: Promise<{ id: string }> }) {
-  await requirePerm("teachers.view");
+  const admin = await requirePerm("teachers.view");
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
-  const [p, stats, months, payouts, phone, sessions] = await Promise.all([
+  const [p, stats, months, payouts, phone, sessions, bonuses] = await Promise.all([
     teacherProfile(id), teacherStats(id), monthlyEarnings(id), payoutsFor(id),
     one<{ phone_enc: string | null }>(`SELECT phone_enc FROM users WHERE id = $1`, [id]),
     q<{ id: string; starts_at: Date; status: string; subject: keyof typeof SUBJECTS; student: string; grade: number }>(
       `SELECT b.id, b.starts_at, b.status, b.subject, st.full_name student, st.grade
          FROM bookings b JOIN students st ON st.id = b.student_id WHERE b.teacher_id = $1 ORDER BY b.starts_at DESC LIMIT 100`, [id]),
+    bonusesFor(id),
   ]);
   if (!p) notFound();
   const s = stats[0];
   const paidMonths = new Set(payouts.map((x) => x.period_month));
-  const rate = env.teacherRateSar;
+  const canPay = can(admin, "finance.manage");
+  const thisMonth = riyadhDateKey(new Date()).slice(0, 7);
 
   return (
     <>
@@ -56,18 +59,44 @@ export default async function TeacherDetail({ params }: { params: Promise<{ id: 
         </div>
       )}
 
+      <section className="panel mb-8 p-6">
+        <h2 className="mb-1 text-xl">المكافآت</h2>
+        <p className="mb-4 text-sm text-muted">تُضاف لشهر محدد وتُصرف مع أجره، وتظهر للمعلمة في صفحة مستحقاتها.</p>
+        {canPay && <BonusForm teacherId={id} month={thisMonth} />}
+        {bonuses.length > 0 && (
+          <ul className="mt-5 divide-y divide-line">
+            {bonuses.map((b) => (
+              <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <span className={b.voided_at ? "text-muted line-through" : ""}>
+                  <span className="font-medium">{sar(Number(b.amount_sar))}</span> · <span dir="ltr">{b.period_month}</span> · {b.reason}
+                  <span className="block text-xs text-muted">أضافها {b.creator}{b.voided_at ? ` · أُلغيت: ${b.void_reason}` : ""}</span>
+                </span>
+                {b.payout_id ? <span className="chip chip-ok">صُرفت</span> : b.voided_at ? <span className="chip">ملغاة</span> : canPay && (
+                  <form action={voidBonusAction} className="flex gap-2">
+                    <input type="hidden" name="id" value={b.id} />
+                    <input name="reason" className="input py-1.5 text-sm" placeholder="سبب الإلغاء" maxLength={300} />
+                    <button className="btn btn-ghost btn-sm">إلغاء</button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <div className="grid gap-8 lg:grid-cols-[.9fr_1.1fr]">
         <section>
           <h2 className="mb-3 text-xl">حسب الشهر</h2>
           <div className="panel overflow-x-auto">
             <table className="table">
-              <thead><tr><th>الشهر</th><th>الحصص</th><th>المستحق</th><th></th></tr></thead>
+              <thead><tr><th>الشهر</th><th>الحصص</th><th>أجر الحصص</th><th>مكافآت</th><th>الإجمالي</th><th></th></tr></thead>
               <tbody>
-                {months.length === 0 && <tr><td colSpan={4} className="text-muted">لا توجد حصص محتسبة.</td></tr>}
+                {months.length === 0 && <tr><td colSpan={6} className="text-muted">لا توجد حصص محتسبة.</td></tr>}
                 {months.map((m) => (
                   <tr key={m.month}>
-                    <td dir="ltr" className="text-right">{m.month}</td><td>{m.sessions}</td><td>{sar(Number(m.sessions) * rate)}</td>
-                    <td>{paidMonths.has(m.month) ? <span className="chip chip-ok">مدفوع</span> : (
+                    <td dir="ltr" className="text-right">{m.month}</td><td>{m.sessions}</td><td>{sar(Number(m.session_pay))}</td>
+                    <td>{Number(m.bonus) ? sar(Number(m.bonus)) : "—"}</td><td className="font-medium">{sar(Number(m.total))}</td>
+                    <td>{paidMonths.has(m.month) ? <span className="chip chip-ok">مدفوع</span> : !canPay ? null : (
                       <form action={recordPayoutAction}><input type="hidden" name="teacher_id" value={id} /><input type="hidden" name="month" value={m.month} />
                         <button className="btn btn-ghost btn-sm">تسجيل الدفع</button></form>)}</td>
                   </tr>

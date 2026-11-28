@@ -22,7 +22,7 @@ const NAV: { href: string; label: string; perm?: Permission; ownerOnly?: boolean
   { href: "/admin/payouts", label: "صرف الأجور", perm: "finance.view" },
   { href: "/admin/insights", label: "استبيان التسجيل", perm: "insights.view" },
   { href: "/admin/staff", label: "فريق العمل", ownerOnly: true },
-  { href: "/admin/plans", label: "الباقات", perm: "settings.manage" },
+  { href: "/admin/plans", label: "الأسعار والباقات", perm: "settings.manage" },
   { href: "/admin/salla", label: "ربط سلة", perm: "settings.manage" },
   { href: "/admin/teams", label: "ربط تيمز", perm: "settings.manage" },
   { href: "/admin/emails", label: "البريد", perm: "settings.manage" },

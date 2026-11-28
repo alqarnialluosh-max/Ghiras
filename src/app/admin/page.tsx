@@ -90,7 +90,7 @@ async function OwnerDashboard({ work }: { work: React.ReactNode }) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Stat label="إيراد الشهر" value={sar(o.revenueMonth)}
             sub={growth == null ? `الشهر الماضي ${sar(o.revenueLastMonth)}` : `${growth >= 0 ? "▲" : "▼"} ${Math.abs(growth)}% عن الشهر الماضي`} />
-          <Stat label="أجور المعلمات للشهر" value={sar(o.costMonth)} sub={`${o.costMonth / o.rate} حصة × ${o.rate} ﷼`} tone="sky" />
+          <Stat label="أجور المعلمات للشهر" value={sar(o.costMonth)} sub={`${o.payableMonth} حصة، شاملة المكافآت`} tone="sky" />
           <Stat label="صافي الشهر" value={sar(o.profitMonth)} tone={o.profitMonth >= 0 ? "ok" : "bad"} sub="الإيراد ناقص أجور المعلمات" />
           <Stat label="مستحق للمعلمات (غير مدفوع)" value={sar(o.outstanding)} tone={o.outstanding > 0 ? "bad" : "ok"}
             sub={<Link href="/admin/teachers/stats" className="underline">التفاصيل لكل معلمة</Link>} />
